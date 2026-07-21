@@ -675,17 +675,37 @@ function showCraftGuide(){
     const res=item.Results||[];
     h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
     if(res.length===0){h+='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';h+='</div>';continue}
+    // 按加工方式统计
+    let methodTotals={}, totalProcessed=0;
+    const validRes=[];
     for(const r of res){
-      // 输入输出是同一种物品则省略
       if(r.ResultItem===item.RawItem) continue;
+      validRes.push(r);
+      const baseId=item.RawItem;
+      const bn=shortName(baseId);
+      const rsn=shortName(r.ResultItem);
+      const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
+      let m='合成台';
+      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){m='🔪 切石机'}
+      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){m='🔥 熔炉'}
+      methodTotals[m]=(methodTotals[m]||0)+r.ResultTotal;
+      totalProcessed+=r.ResultTotal;
+    }
+    // 方法统计摘要
+    const directUse=Math.max(0,cnt-totalProcessed);
+    let summary=[];
+    if(directUse>0) summary.push('直接使用 '+directUse+' 个');
+    for(const[m,q]of Object.entries(methodTotals)) summary.push(m+' '+q+' 个');
+    if(summary.length) h+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+summary.map(s=>'<span>'+s+'</span>').join('')+'</div>';
+    for(const r of validRes){
       const rn=getName(r.ResultItem),rc=r.ResultTotal;
       const ri=imgUrl(r.ResultItem);
       const baseId=item.RawItem;
       const bn=shortName(baseId);
+      const rsn=shortName(r.ResultItem);
       // 判断合成方式
       let method='合成台',mClass='craft-method-crafting';
       const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
-      const rsn=shortName(r.ResultItem);
       if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){method='🔪 切石机';mClass='craft-method-stonecutter'}
       else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){method='🔥 熔炉';mClass='craft-method-furnace'}
       h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
