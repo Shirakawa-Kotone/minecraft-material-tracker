@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft 建材清单 · 材料与去向</title>
+<style>
+:root{--bg:#1a1a2e;--surface:#16213e;--card:#1e2a4a;--card-hover:#253558;--accent:#e0a832;--accent2:#5c9e5c;--text:#e8e0d4;--text-muted:#9a8e7a;--border:#2a3a5a;--danger:#c0392b;--success:#27ae60;--done-bg:#0d2818;--done-border:#1a4a2e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,#0f0f23,#1a1a3e,#0f0f23);border-bottom:2px solid var(--accent);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:100}
+.header h1{font-size:24px;display:flex;align-items:center;gap:10px}
+.header-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#1a1a2e}
+.btn-primary:hover{background:#f0b842;transform:translateY(-1px)}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--card-hover)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#2ecc71}
+.main{max-width:1400px;margin:0 auto;padding:20px}
+.upload-area{background:var(--surface);border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;margin-bottom:24px;transition:all .3s;cursor:pointer}
+.upload-area.dragover{border-color:var(--accent);background:rgba(224,168,50,.08)}
+.upload-area .icon{font-size:48px;margin-bottom:12px}
+.upload-area h2{font-size:20px;margin-bottom:8px}
+.upload-area p{color:var(--text-muted);font-size:14px}
+.upload-area .hint{margin-top:12px;font-size:12px;color:var(--text-muted)}
+.upload-area input[type="file"]{display:none}
+.stats-bar{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.stat-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;display:flex;align-items:center;gap:10px;flex:1;min-width:120px}
+.stat-item .num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-item .label{font-size:13px;color:var(--text-muted)}
+.stat-item .sub{font-size:11px;color:var(--text-muted);margin-top:2px}
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
+.search-box{flex:1;min-width:200px;padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px}
+.search-box:focus{outline:none;border-color:var(--accent)}
+.search-box::placeholder{color:var(--text-muted)}
+.filter-group{display:flex;gap:6px;flex-wrap:wrap}
+.filter-tag{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;transition:all .2s}
+.filter-tag:hover{border-color:var(--accent);color:var(--accent)}
+.filter-tag.active{background:var(--accent);color:#1a1a2e;border-color:var(--accent);font-weight:600}
+.view-toggle{display:flex;gap:4px;background:var(--surface);border-radius:6px;padding:3px;border:1px solid var(--border)}
+.view-toggle button{padding:5px 10px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-radius:4px;font-size:13px;transition:all .2s}
+.view-toggle button.active{background:var(--card);color:var(--text)}
+.material-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .25s}
+.card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card.collected{background:var(--done-bg);border-color:var(--done-border);opacity:.85}
+.card.collected:hover{border-color:var(--success);opacity:1}
+.card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none;background:linear-gradient(135deg,rgba(255,255,255,.02),transparent)}
+.card-header .checkbox{width:20px;height:20px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:14px}
+.card-header .checkbox:hover{border-color:var(--accent)}
+.card-header .checkbox.checked{background:var(--success);border-color:var(--success)}
+.card-header .item-icon{width:48px;height:48px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;border:1px solid var(--border);image-rendering:pixelated}
+.card-header .item-icon img{width:100%;height:100%;object-fit:contain}
+.card-header .item-icon .fallback{font-size:20px;color:var(--text-muted)}
+.card-info{flex:1;min-width:0}
+.card-info .name{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-info .sub{font-size:12px;color:var(--text-muted);margin-top:2px}
+.card-info .sub .item-id{font-family:monospace;font-size:11px;opacity:.6}
+.card-qty{font-size:22px;font-weight:700;color:var(--accent);min-width:50px;text-align:right}
+.card-qty .unit{font-size:12px;font-weight:400;color:var(--text-muted)}
+.card-breakdown{font-size:12px;color:var(--accent2);margin-top:2px;cursor:pointer}
+.card-breakdown:hover{text-decoration:underline}
+.card-expand{padding:0 16px 14px}
+.card-arrow{color:var(--text-muted);font-size:18px;transition:transform .3s}
+.card-arrow.open{transform:rotate(180deg)}
+.results-table{width:100%;border-collapse:collapse;margin-top:8px}
+.results-table th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-muted);padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px}
+.results-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle}
+.results-table tr:last-child td{border-bottom:none}
+.results-table .result-item{display:flex;align-items:center;gap:8px}
+.results-table .result-item .mini-icon{width:24px;height:24px;border-radius:4px;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;image-rendering:pixelated}
+.results-table .result-item .mini-icon img{width:100%;height:100%;object-fit:contain}
+.result-qty{font-weight:600;text-align:right;color:var(--accent2);white-space:nowrap}
+.result-ratio{font-size:11px;color:var(--text-muted);text-align:right}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:64px;margin-bottom:16px}
+.empty-state h3{font-size:20px;margin-bottom:8px;color:var(--text)}
+.empty-state p{font-size:14px;max-width:400px;margin:0 auto}
+.data-source-info{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.group-section{margin-bottom:28px}
+.group-title{font-size:16px;font-weight:700;padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.group-title .count{font-size:12px;font-weight:400;color:var(--text-muted)}
+.group-title .progress{font-size:12px;color:var(--accent2);margin-left:auto}
+.completed-badge{display:inline-block;padding:2px 8px;border-radius:10px;background:var(--success);color:#fff;font-size:11px;font-weight:600;margin-left:8px}
+.table-view{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.table-view th{background:var(--surface);padding:12px 14px;text-align:left;font-size:12px;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;font-weight:600;border-bottom:2px solid var(--border)}
+.table-view td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;vertical-align:middle}
+.table-view tr:hover td{background:rgba(255,255,255,.02)}
+.table-view .mini-icon-table{width:32px;height:32px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle;margin-right:10px;image-rendering:pixelated}
+.table-view .mini-icon-table img{width:100%;height:100%;object-fit:contain}
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:slideIn .3s ease;max-width:360px}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--danger)}
+.toast.info{border-left:3px solid var(--accent)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.breakdown-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.breakdown-panel{background:var(--surface);border:2px solid var(--accent);border-radius:16px;max-width:700px;width:100%;max-height:80vh;overflow-y:auto;padding:24px;position:relative}
+.breakdown-panel h2{font-size:20px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.breakdown-panel .close-btn{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text-muted);font-size:24px;cursor:pointer}
+.breakdown-panel .close-btn:hover{color:var(--text)}
+.breakdown-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px}
+.breakdown-item:last-child{border-bottom:none}
+.breakdown-item .mini-icon{width:28px;height:28px;border-radius:4px;background:var(--card);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;image-rendering:pixelated}
+.breakdown-item .mini-icon img{width:100%;height:100%;object-fit:contain}
+.breakdown-item .qty{font-weight:700;color:var(--accent);margin-left:auto;white-space:nowrap}
+.breakdown-cat{margin-bottom:12px}
+.breakdown-cat-title{font-size:14px;font-weight:600;padding:6px 0;color:var(--accent);border-bottom:1px solid var(--border);margin-bottom:6px}
+.craft-guide{max-width:800px;margin:0 auto}
+.craft-step{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.craft-step-title{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.craft-step .arrow-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.craft-step .arrow-row:last-child{border-bottom:none}
+.craft-step .arrow-row .ing{display:flex;align-items:center;gap:6px;font-size:13px}
+.craft-step .arrow-row .ing .mini-icon{width:24px;height:24px;border-radius:4px;background:var(--surface);display:flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated}
+.craft-step .arrow-row .ing .mini-icon img{width:100%;height:100%;object-fit:contain}
+.craft-step .arrow-row .arrow{color:var(--accent);font-size:18px;font-weight:700}
+.craft-step .arrow-row .method{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--surface);color:var(--text-muted)}
+.craft-method-stonecutter{color:#8b7be8}
+.craft-method-crafting{color:var(--accent)}
+.craft-method-furnace{color:#e85a5a}
+@media(max-width:768px){.header{padding:14px 16px}.header h1{font-size:18px}.material-grid{grid-template-columns:1fr}.stats-bar .stat-item{flex:1;min-width:100px;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 14px}.stats-bar .stat-item .num{font-size:22px}}
+@media(max-width:480px){.stats-bar{flex-direction:column;gap:8px}.stat-item{flex:none;width:100%}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>⛏️</span> 建材清单 <span id="allDoneBadge" style="display:none;font-size:12px;background:var(--success);padding:2px 8px;border-radius:10px">✅ 全部收集</span></h1>
+  <div class="header-controls">
+    <button class="btn btn-secondary" onclick="toggleSampleData()">📥 加载示例</button>
+    <button class="btn btn-secondary" onclick="showCraftGuide()">🧭 合成指导</button>
+    <button class="btn btn-secondary" onclick="clearAllData()">🗑️ 清空</button>
+  </div>
+</div>
+
+<div class="main" id="app">
+  <div class="upload-area" id="uploadArea">
+    <div class="icon">📂</div>
+    <h2>上传建筑材料清单</h2>
+    <p>支持 JSON 或 CSV 格式</p>
+    <div class="hint">拖拽或点击选择 · 数据自动保存</div>
+    <input type="file" id="fileInput" accept=".json,.csv,.txt" multiple>
+  </div>
+
+  <div class="data-source-info" id="dataSourceInfo" style="display:none">
+    <span>📄</span><span id="dataSourceText"></span>
+    <span style="margin-left:auto;font-size:12px;color:var(--text-muted)">已持久化存储</span>
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-item"><span class="num" id="statRaw">0</span><div><div class="label">原材料</div><div class="sub" id="statCollect"></div></div></div>
+    <div class="stat-item"><span class="num" id="statTotal">0</span><div><div class="label">总需数量</div><div class="sub" id="statTotalFmt"></div></div></div>
+    <div class="stat-item"><span class="num" id="statBase">0</span><div><div class="label">基础材料</div><div class="sub">分解后种类</div></div></div>
+    <div class="stat-item"><span class="num" id="statGroups">0</span><div><div class="label">分类</div><div class="sub">材料大类</div></div></div>
+  </div>
+
+  <div class="toolbar" id="toolbar" style="display:none">
+    <input type="text" class="search-box" id="searchBox" placeholder="🔍 搜索材料..." oninput="renderData()">
+    <div class="filter-group" id="filterGroup"></div>
+    <div class="view-toggle">
+      <button class="active" onclick="setViewMode('card')" id="viewCard">📇 卡片</button>
+      <button onclick="setViewMode('list')" id="viewList">📋 列表</button>
+      <button onclick="setViewMode('raw')" id="viewRaw">🧱 基础材料</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="empty-state">
+      <div class="icon">🏗️</div>
+      <h3>还没有加载数据</h3>
+      <p>上传 Minecraft 建材清单文件即可查看。<br>✅ 点击卡片上的方框标记已收集的材料。</p>
+    </div>
+  </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+
+<div id="breakdownModal" style="display:none" class="breakdown-modal" onclick="if(event.target===this)closeBreakdown()">
+  <div class="breakdown-panel">
+    <button class="close-btn" onclick="closeBreakdown()">✕</button>
+    <h2 id="breakdownTitle">📦 材料分解</h2>
+    <div id="breakdownContent"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const STORAGE_KEY='minecraft_material_data';
+const FALLBACK_NAMES={
+  'minecraft:cobbled_deepslate':'深板岩圆石','minecraft:cobbled_deepslate_stairs':'深板岩圆石楼梯',
+  'minecraft:cobbled_deepslate_slab':'深板岩圆石台阶','minecraft:cobbled_deepslate_wall':'深板岩圆石墙',
+  'minecraft:deepslate_bricks':'深板岩砖','minecraft:deepslate_brick_stairs':'深板岩砖楼梯',
+  'minecraft:deepslate_brick_slab':'深板岩砖台阶','minecraft:deepslate_brick_wall':'深板岩砖墙',
+  'minecraft:deepslate':'深板岩','minecraft:deepslate_tiles':'深板岩瓦',
+  'minecraft:deepslate_tile_stairs':'深板岩瓦楼梯','minecraft:deepslate_tile_slab':'深板岩瓦台阶',
+  'minecraft:deepslate_tile_wall':'深板岩瓦墙','minecraft:polished_deepslate':'磨制深板岩',
+  'minecraft:chiseled_deepslate':'錾制深板岩',
+  'minecraft:cherry_log':'樱花原木','minecraft:cherry_wood':'樱花木',
+  'minecraft:stripped_cherry_log':'去皮樱花原木','minecraft:stripped_cherry_wood':'去皮樱花木',
+  'minecraft:cherry_planks':'樱花木板','minecraft:cherry_stairs':'樱花木楼梯',
+  'minecraft:cherry_slab':'樱花木台阶','minecraft:cherry_fence':'樱花木栅栏',
+  'minecraft:cherry_fence_gate':'樱花木栅栏门','minecraft:cherry_door':'樱花木门',
+  'minecraft:cherry_trapdoor':'樱花木活板门','minecraft:cherry_pressure_plate':'樱花木压力板',
+  'minecraft:cherry_button':'樱花木按钮','minecraft:cherry_sign':'樱花木告示牌',
+  'minecraft:cherry_hanging_sign':'悬挂式樱花木告示牌','minecraft:cherry_leaves':'樱花树叶',
+  'minecraft:cherry_sapling':'樱花树苗',
+  'minecraft:stone':'石头','minecraft:cobblestone':'圆石','minecraft:stone_bricks':'石砖',
+  'minecraft:stone_brick_stairs':'石砖楼梯','minecraft:stone_brick_slab':'石砖台阶',
+  'minecraft:stone_brick_wall':'石砖墙','minecraft:chiseled_stone_bricks':'錾制石砖',
+  'minecraft:mossy_stone_bricks':'苔石砖','minecraft:mossy_cobblestone':'苔石','minecraft:smooth_stone':'平滑石头',
+  'minecraft:sand':'沙子','minecraft:gravel':'沙砾','minecraft:glass':'玻璃','minecraft:glass_pane':'玻璃板',
+  'minecraft:bone':'骨头','minecraft:bone_meal':'骨粉','minecraft:quartz':'下界石英',
+  'minecraft:quartz_block':'石英块','minecraft:smooth_quartz':'平滑石英块',
+  'minecraft:calcite':'方解石','minecraft:diorite':'闪长岩','minecraft:andesite':'安山岩','minecraft:granite':'花岗岩',
+  'minecraft:iron_ingot':'铁锭','minecraft:iron_nugget':'铁粒','minecraft:iron_block':'铁块',
+  'minecraft:gold_ingot':'金锭','minecraft:gold_nugget':'金粒',
+  'minecraft:brick':'红砖','minecraft:bricks':'砖块','minecraft:flower_pot':'花盆',
+  'minecraft:lantern':'灯笼','minecraft:soul_lantern':'灵魂灯笼',
+  'minecraft:torch':'火把','minecraft:soul_torch':'灵魂火把',
+  'minecraft:bell':'钟','minecraft:grass_block':'草方块','minecraft:peony':'牡丹',
+  'minecraft:flowering_azalea':'盛开的杜鹃花丛','minecraft:azalea':'杜鹃花丛',
+  'minecraft:white_concrete':'白色混凝土','minecraft:white_concrete_powder':'白色混凝土粉末',
+  'minecraft:light_gray_concrete_powder':'淡灰色混凝土粉末','minecraft:light_gray_concrete':'淡灰色混凝土',
+  'minecraft:light_gray_dye':'淡灰色染料',
+  'minecraft:coal':'煤炭','minecraft:charcoal':'木炭',
+  'minecraft:stick':'木棍','minecraft:oak_log':'橡树原木',
+  'minecraft:oak_planks':'橡树木板','minecraft:spruce_log':'云杉原木','minecraft:birch_log':'白桦原木',
+  'minecraft:jungle_log':'丛林原木','minecraft:acacia_log':'金合欢原木','minecraft:dark_oak_log':'深色橡树原木',
+  'minecraft:mangrove_log':'红树原木','minecraft:pale_oak_log':'苍白橡树原木',
+  'minecraft:oak_sapling':'橡树树苗','minecraft:spruce_sapling':'云杉树苗','minecraft:birch_sapling':'白桦树苗',
+  'minecraft:jungle_sapling':'丛林树苗','minecraft:acacia_sapling':'金合欢树苗','minecraft:dark_oak_sapling':'深色橡树树苗',
+  'minecraft:oak_leaves':'橡树树叶','minecraft:spruce_leaves':'云杉树叶','minecraft:birch_leaves':'白桦树叶',
+  'minecraft:jungle_leaves':'丛林树叶','minecraft:acacia_leaves':'金合欢树叶','minecraft:dark_oak_leaves':'深色橡树树叶',
+  'minecraft:white_tulip':'白色郁金香','minecraft:orange_tulip':'橙色郁金香','minecraft:pink_tulip':'粉色郁金香',
+  'minecraft:red_tulip':'红色郁金香','minecraft:dandelion':'蒲公英','minecraft:poppy':'罂粟',
+  'minecraft:allium':'绒球葱','minecraft:azure_bluet':'蓝花美耳草','minecraft:oxeye_daisy':'滨菊',
+  'minecraft:cornflower':'矢车菊','minecraft:lily_of_the_valley':'铃兰','minecraft:sunflower':'向日葵',
+  'minecraft:lilac':'丁香','minecraft:rose_bush':'玫瑰丛',
+  'minecraft:coal_block':'煤炭块','minecraft:raw_iron':'粗铁','minecraft:raw_gold':'粗金','minecraft:raw_copper':'粗铜',
+  'minecraft:copper_ingot':'铜锭','minecraft:netherite_ingot':'下界合金锭',
+  'minecraft:diamond':'钻石','minecraft:emerald':'绿宝石','minecraft:lapis_lazuli':'青金石','minecraft:redstone':'红石粉',
+  'minecraft:nether_quartz_ore':'下界石英矿石',
+  'minecraft:netherrack':'下界岩','minecraft:soul_sand':'灵魂沙','minecraft:soul_soil':'灵魂土',
+  'minecraft:obsidian':'黑曜石','minecraft:ender_pearl':'末影珍珠','minecraft:blaze_rod':'烈焰棒',
+  'minecraft:clay_ball':'粘土','minecraft:clay':'粘土块',
+  'minecraft:paper':'纸','minecraft:book':'书','minecraft:feather':'羽毛','minecraft:string':'线',
+  'minecraft:leather':'皮革','minecraft:slime_ball':'粘液球','minecraft:ender_eye':'末影之眼',
+  'minecraft:flint':'燧石','minecraft:gunpowder':'火药','minecraft:sugar':'糖',
+  'minecraft:dirt':'泥土','minecraft:grass_block':'草方块',
+  'minecraft:gray_concrete':'灰色混凝土','minecraft:light_blue_concrete':'淡蓝色混凝土',
+  'minecraft:blue_concrete':'蓝色混凝土','minecraft:purple_concrete':'紫色混凝土',
+  'minecraft:magenta_concrete':'品红色混凝土','minecraft:cyan_concrete':'青色混凝土',
+  'minecraft:pink_concrete':'粉红色混凝土','minecraft:black_concrete':'黑色混凝土',
+  'minecraft:brown_concrete':'棕色混凝土','minecraft:red_concrete':'红色混凝土',
+  'minecraft:orange_concrete':'橙色混凝土','minecraft:green_concrete':'绿色混凝土',
+  'minecraft:lime_concrete':'黄绿色混凝土','minecraft:yellow_concrete':'黄色混凝土',
+};
+const CSV_RMAP={};for(const[id,nm]of Object.entries(FALLBACK_NAMES))CSV_RMAP[nm]=id.split(':')[1]||id;
+
+// ---------- Item image ----------
+function imgUrl(i){const n=(i.split(':')[1]||i);return'images/'+n+'.png'}
+function imgFallback(i){
+  const n=(i.split(':')[1]||i);
+  const ov={'quartz':'Nether_Quartz','quartz_block':'Block_of_Quartz','smooth_quartz':'Smooth_Quartz','iron_block':'Block_of_Iron','gold_ingot':'Gold_Ingot','gold_nugget':'Gold_Nugget','light_gray_dye':'Light_Gray_Dye','bone_meal':'Bone_Meal'};
+  return'https://minecraft.wiki/images/Invicon_'+(ov[n]||n.split('_').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join('_'))+'.png';
+}
+
+// ---------- Auto Translate ----------
+const AT_COL={
+  white:'白色',light_gray:'淡灰色',gray:'灰色',black:'黑色',brown:'棕色',
+  red:'红色',orange:'橙色',yellow:'黄色',lime:'黄绿色',green:'绿色',
+  cyan:'青色',light_blue:'淡蓝色',blue:'蓝色',purple:'紫色',magenta:'品红色',pink:'粉红色',
+};
+const AT_WOOD={
+  oak:'橡树',spruce:'云杉',birch:'白桦',jungle:'丛林',acacia:'金合欢',
+  dark_oak:'深色橡树',pale_oak:'苍白橡树',mangrove:'红树',cherry:'樱花',
+  crimson:'绯红',warped:'诡异',bamboo:'竹',
+};
+const AT_MAT={
+  stone:'石',deepslate:'深板岩',cobblestone:'圆石',cobbled:'圆石',
+  granite:'花岗岩',diorite:'闪长岩',andesite:'安山岩',
+  tuff:'凝灰岩',calcite:'方解石',basalt:'玄武岩',blackstone:'黑石',
+  sandstone:'砂岩',quartz:'石英',nether:'下界',prismarine:'海晶石',
+  end_stone:'末地石',purpur:'紫珀',brick:'砖',bricks:'砖',
+};
+const AT_SUF={
+  stairs:'楼梯',slab:'台阶',wall:'墙',fence:'栅栏',fence_gate:'栅栏门',
+  door:'门',trapdoor:'活板门',button:'按钮',pressure_plate:'压力板',
+  sign:'告示牌',hanging_sign:'悬挂式告示牌',
+  boat:'船',chest_boat:'运输船',raft:'筏',chest_raft:'运输筏',
+  planks:'木板',log:'原木',wood:'木头',leaves:'树叶',sapling:'树苗',
+  banner:'旗帜',bed:'床',carpet:'地毯',wool:'羊毛',
+  stained_glass_pane:'染色玻璃板',stained_glass:'染色玻璃',
+  terracotta:'陶瓦',concrete_powder:'混凝土粉末',concrete:'混凝土',
+  dye:'染料',candle:'蜡烛',harness:'马铠',
+  sword:'剑',pickaxe:'镐',axe:'斧',shovel:'锹',hoe:'锄',
+  helmet:'头盔',chestplate:'胸甲',leggings:'护腿',boots:'靴子',
+  ore:'矿石',block:'块',powder:'粉末',
+  bricks:'砖',brick:'砖',
+};
+const AT_PRE={polished:'磨制',chiseled:'雕纹',cracked:'裂纹',mossy:'苔石',
+  smooth:'平滑',cut:'切制',exposed:'斑驳的',weathered:'锈蚀的',
+  oxidized:'氧化的',waxed:'涂蜡',stripped:'去皮',
+};
+const AT_ITEM={
+  stick:'木棍',bow:'弓',arrow:'箭',bowl:'碗',apple:'苹果',
+  bread:'面包',baked_potato:'烤马铃薯',beetroot:'甜菜根',beetroot_soup:'甜菜汤',
+  iron_ingot:'铁锭',gold_ingot:'金锭',copper_ingot:'铜锭',netherite_ingot:'下界合金锭',
+  iron_nugget:'铁粒',gold_nugget:'金粒',diamond:'钻石',emerald:'绿宝石',
+  lapis_lazuli:'青金石',redstone:'红石粉',coal:'煤炭',charcoal:'木炭',
+  netherite_scrap:'下界合金碎片',amethyst_shard:'紫水晶碎片',
+  blaze_rod:'烈焰棒',blaze_powder:'烈焰粉',ender_pearl:'末影珍珠',ender_eye:'末影之眼',
+  ghast_tear:'恶魂之泪',magma_cream:'岩浆膏',slime_ball:'粘液球',
+  bone:'骨头',bone_meal:'骨粉',feather:'羽毛',string:'线',leather:'皮革',
+  paper:'纸',book:'书',ink_sac:'墨囊',glow_ink_sac:'荧光墨囊',
+  flint:'燧石',gunpowder:'火药',sugar:'糖',fermented_spider_eye:'发酵蛛眼',
+  spider_eye:'蛛眼',rotten_flesh:'腐肉',poisonous_potato:'毒马铃薯',
+  glass_bottle:'玻璃瓶',honey_bottle:'蜂蜜瓶',honey_block:'蜂蜜块',
+  honeycomb:'蜜脾',nautilus_shell:'鹦鹉螺壳',heart_of_the_sea:'海洋之心',
+  prismarine_shard:'海晶碎片',prismarine_crystals:'海晶砂粒',
+  leather_horse_armor:'皮革马铠',iron_horse_armor:'铁马铠',
+  gold_horse_armor:'金马铠',diamond_horse_armor:'钻石马铠',
+  saddle:'鞍',elytra:'鞘翅',shield:'盾牌',totem_of_undying:'不死图腾',
+  experience_bottle:'附魔之瓶',dragon_breath:'龙息',shulker_shell:'潜影壳',
+  phantom_membrane:'幻翼膜',nautilus_core:'潮涌核心',
+  armor_stand:'盔甲架',item_frame:'物品展示框',painting:'画',
+  flower_pot:'花盆',composter:'堆肥桶',barrel:'木桶',beehive:'蜂箱',
+  beacon:'信标',anvil:'铁砧',bell:'钟',lantern:'灯笼',soul_lantern:'灵魂灯笼',
+  campfire:'营火',soul_campfire:'灵魂营火',furnace:'熔炉',blast_furnace:'高炉',
+  smoker:'烟熏炉',brewing_stand:'酿造台',cauldron:'炼药锅',
+  enchanting_table:'附魔台',ender_chest:'末影箱',crafting_table:'工作台',
+  chest:'箱子',trapped_chest:'陷阱箱',lectern:'讲台',grindstone:'砂轮',
+  loom:'织布机',stonecutter:'切石机',cartography_table:'制图台',
+  fletching_table:'制箭台',smithing_table:'锻造台',
+  bookshelf:'书架',ladder:'梯子',rail:'铁轨',powered_rail:'动力铁轨',
+  detector_rail:'探测铁轨',activator_rail:'激活铁轨',
+  minecart:'矿车',chest_minecart:'运输矿车',furnace_minecart:'动力矿车',
+  tnt_minecart:'TNT矿车',hopper_minecart:'漏斗矿车',
+  hopper:'漏斗',dropper:'投掷器',dispenser:'发射器',piston:'活塞',
+  sticky_piston:'粘性活塞',observer:'观察者',note_block:'音符盒',
+  jukebox:'唱片机',daylight_detector:'阳光探测器',redstone_repeater:'红石中继器',
+  redstone_comparator:'红石比较器',target:'标靶',sculk_sensor:'Sculk传感器',
+  sculk_shrieker:'Sculk尖啸体',sculk_catalyst:'Sculk催化体',
+  sculk_vein:'Sculk脉络',reinforced_deepslate:'强化深板岩',
+  cobbled_deepslate:'深板岩圆石',polished_deepslate:'磨制深板岩',
+  deepslate_bricks:'深板岩砖',deepslate_tiles:'深板岩瓦',
+  smooth_stone:'平滑石头',smooth_quartz:'平滑石英',
+  glowstone:'荧石',sea_lantern:'海晶灯',jack_o_lantern:'南瓜灯',
+  ice:'冰',packed_ice:'浮冰',blue_ice:'蓝冰',
+  snowball:'雪球',snow_block:'雪块',
+  clay:'粘土块',clay_ball:'粘土',brick:'红砖',nether_brick:'下界砖',
+  nether_quartz:'下界石英',nether_quartz_ore:'下界石英矿石',
+  nether_gold_ore:'下界金矿石',netherrack:'下界岩',soul_sand:'灵魂沙',
+  soul_soil:'灵魂土',obsidian:'黑曜石',crying_obsidian:'哭泣黑曜石',
+  glowstone_dust:'荧石粉',gravel:'沙砾',sand:'沙子',red_sand:'红沙',
+  dirt:'泥土',grass_block:'草方块',podzol:'灰化土',mycelium:'菌丝',
+  moss_block:'苔藓块',moss_carpet:'苔藓地毯',
+  cobblestone:'圆石',mossy_cobblestone:'苔石',
+  stone:'石头',andesite:'安山岩',diorite:'闪长岩',granite:'花岗岩',
+  tuff:'凝灰岩',calcite:'方解石',basalt:'玄武岩',blackstone:'黑石',
+  deepslate:'深板岩',cobbled_deepslate:'深板岩圆石',
+  oak_log:'橡树原木',spruce_log:'云杉原木',birch_log:'白桦原木',
+  jungle_log:'丛林原木',acacia_log:'金合欢原木',dark_oak_log:'深色橡树原木',
+  mangrove_log:'红树原木',cherry_log:'樱花原木',pale_oak_log:'苍白橡树原木',
+  crimson_stem:'绯红菌柄',warped_stem:'诡异菌柄',
+  stripped_oak_log:'去皮橡树原木',stripped_spruce_log:'去皮云杉原木',
+  stripped_birch_log:'去皮白桦原木',stripped_jungle_log:'去皮丛林原木',
+  stripped_acacia_log:'去皮金合欢原木',stripped_dark_oak_log:'去皮深色橡树原木',
+  stripped_mangrove_log:'去皮红树原木',stripped_cherry_log:'去皮樱花原木',
+  stripped_pale_oak_log:'去皮苍白橡树原木',
+  stripped_crimson_stem:'去皮绯红菌柄',stripped_warped_stem:'去皮诡异菌柄',
+  oak_planks:'橡树木板',spruce_planks:'云杉木板',birch_planks:'白桦木板',
+  jungle_planks:'丛林木板',acacia_planks:'金合欢木板',dark_oak_planks:'深色橡树木板',
+  mangrove_planks:'红树木板',cherry_planks:'樱花木板',pale_oak_planks:'苍白橡树木板',
+  crimson_planks:'绯红木板',warped_planks:'诡异木板',
+  glass:'玻璃',glass_pane:'玻璃板',melon:'西瓜',pumpkin:'南瓜',
+  cactus:'仙人掌',sugar_cane:'甘蔗',kelp:'海带',dried_kelp:'干海带',
+  bamboo:'竹子',vine:'藤蔓',twisting_vines:'缠怨藤',weeping_vines:'垂泪藤',
+  glow_berries:'发光浆果',sweet_berries:'甜浆果',
+  torch:'火把',soul_torch:'灵魂火把',redstone_torch:'红石火把',
+  ladder:'梯子',water_bucket:'水桶',lava_bucket:'熔岩桶',milk_bucket:'奶桶',
+  powder_snow_bucket:'细雪桶',bucket:'桶',
+  cod:'生鳕鱼',salmon:'生鲑鱼',tropical_fish:'热带鱼',pufferfish:'河豚',
+  cooked_cod:'熟鳕鱼',cooked_salmon:'熟鲑鱼',
+  beef:'生牛肉',cooked_beef:'牛排',porkchop:'生猪排',cooked_porkchop:'猪排',
+  chicken:'生鸡肉',cooked_chicken:'熟鸡肉',rabbit:'生兔肉',cooked_rabbit:'熟兔肉',
+  mutton:'生羊肉',cooked_mutton:'熟羊肉',
+  egg:'鸡蛋',milk_bucket:'奶桶',cake:'蛋糕',cookie:'曲奇',pumpkin_pie:'南瓜派',
+  mushroom_stew:'蘑菇煲',rabbit_stew:'兔肉煲',suspicious_stew:'谜之炖菜',
+  chorus_fruit:'紫颂果',popped_chorus_fruit:'爆裂紫颂果',
+  spawner:'刷怪笼',end_portal_frame:'末地传送门框架',
+  dragon_egg:'龙蛋',end_crystal:'末地水晶',
+  chorus_flower:'紫颂花',chorus_plant:'紫颂植株',
+  farmland:'耕地',farmland:'耕地',
+};
+function autoCN(n){
+  if(AT_ITEM[n])return AT_ITEM[n];
+  // 尝试后缀匹配
+  for(const[suf,cn]of Object.entries(AT_SUF)){
+    if(n.endsWith('_'+suf)){
+      const pre=n.slice(0,-suf.length-1);
+      const pn=autoCN(pre);
+      return pn ? pn+cn : null;
+    }
+    if(n===suf)return cn;
+  }
+  // 检测前缀
+  for(const[pre,cn]of Object.entries(AT_PRE)){
+    if(n.startsWith(pre+'_')){
+      const rest=n.slice(pre.length+1);
+      const rn=autoCN(rest);
+      if(rn)return cn+rn;
+    }
+  }
+  // 检测颜色前缀
+  const us=n.indexOf('_');
+  if(us>0){
+    const first=n.slice(0,us),rest=n.slice(us+1);
+    if(AT_COL[first]){const rn=autoCN(rest);if(rn)return AT_COL[first]+rn}
+    if(AT_WOOD[first]){const rn=autoCN(rest);if(rn)return AT_WOOD[first]+rn}
+    if(AT_MAT[first]){const rn=autoCN(rest);if(rn)return AT_MAT[first]+rn}
+  }
+  return null;
+}
+const NC=new Map();
+function getName(i){
+  if(NC.has(i))return NC.get(i);const n=i.split(':')[1]||i;
+  if(FALLBACK_NAMES[i]){NC.set(i,FALLBACK_NAMES[i]);return FALLBACK_NAMES[i]}
+  for(const[cn,id]of Object.entries(CSV_RMAP))if(id===n){NC.set(i,cn);return cn}
+  const at=autoCN(n);if(at){NC.set(i,at);return at}
+  const r=n.split('_').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');NC.set(i,r);return r}
+function shortName(i){return(i.split(':')[1]||i)}
+const CAT_KW={
+  'deepslate':'深板岩','cherry':'樱花木','cobbled':'石质','cobblestone':'石质',
+  'stone':'石质','brick':'砖石','concrete':'混凝土','glass':'玻璃','sand':'沙砾',
+  'gravel':'沙砾','dirt':'泥土','grass_block':'植被','grass':'植被','log':'原木','planks':'木板',
+  'leaves':'树叶','sapling':'树苗','iron':'金属','gold':'金属','copper':'金属',
+  'lantern':'照明','torch':'照明','wool':'羊毛','terracotta':'陶瓦',
+  'door':'门窗','trapdoor':'门窗','fence':'栅栏','gate':'栅栏',
+  'sign':'告示牌','flower':'植物','coral':'珊瑚','ore':'矿石','dye':'染料',
+  'bone':'骨粉','bell':'装饰','calcite':'石质','diorite':'石质','andesite':'石质',
+  'granite':'石质','tuff':'石质','basalt':'石质','blackstone':'石质',
+  'nether':'下界','end':'末地','prismarine':'海洋','moss':'苔藓',
+  'azalea':'植被','peony':'植被','quartz':'石英','amethyst':'紫水晶',
+  'copper':'铜',
+};
+function getCategory(i){const n=i.split(':')[1]||i;for(const[kw,cat]of Object.entries(CAT_KW))if(n.includes(kw))return cat;return'📦 其他'}
+
+// ============================================================
+// QUANTITY
+// ============================================================
+function fmtQty(c){
+  const SH=27*64;const bx=Math.floor(c/SH);const r=c%SH;const st=Math.floor(r/64);const it=Math.round(r%64);
+  const p=[];
+  if(bx>0)p.push('<b style=color:#e0a832>'+bx+'</b><span style=font-size:12px>盒</span>');
+  if(st>0)p.push('<b style=color:#5c9e5c>'+st+'</b><span style=font-size:12px>组</span>');
+  if(it>0)p.push('<span style=color:#9a8e7a;font-weight:600>'+it+'</span><span style=font-size:12px>个</span>');
+  return p.join(' ')||'<span style=color:var(--text-muted)>0</span>';
+}
+function fmtShort(c){const bx=Math.floor(c/1728);const r=c%1728;const st=Math.floor(r/64);const it=Math.round(r%64);return(bx?bx+'盒':'')+(st?st+'组':'')+(it?it+'个':'0')}
+
+// ============================================================
+// RECIPE TREE
+// ============================================================
+let recipeTree=null;
+async function loadRT(){
+  try{const r=await fetch('recipe-tree.json');recipeTree=await r.json();console.log('📦 配方树',Object.keys(recipeTree.decompose).length,'项')}
+  catch(e){console.warn('⚠️ 配方树:',e.message)}
+}
+function decompose(name,count){
+  if(!recipeTree||!recipeTree.decompose[name])return{[name]:count};
+  const r={};
+  for(const[base,ratio]of Object.entries(recipeTree.decompose[name])){
+    const sub=decompose(base,ratio*count);
+    for(const[k,v]of Object.entries(sub))r[k]=(r[k]||0)+v;
+  }
+  return r;
+}
+const BC_ORDER=[
+  {k:'🪵',w:['log','wood','planks','bamboo','cherry','oak_','spruce_','birch_','jungle_','acacia_','dark_oak_','mangrove_','pale_oak_','crimson_stem','warped_stem']},
+  {k:'🔩',w:['iron_block','gold_block','copper_block','netherite_block','iron_ingot','gold_ingot','copper_ingot','netherite_ingot','iron_nugget','gold_nugget','diamond','emerald','lapis','redstone','coal','quartz','amethyst','raw_iron','raw_gold','raw_copper','raw_']},
+  {k:'🪨',w:['stone','cobblestone','cobbled','deepslate','granite','diorite','andesite','tuff','basalt','blackstone','calcite','sandstone','prismarine','end_stone','netherrack','nether_brick','purpur']},
+  {k:'🧱',w:['brick','bricks','terracotta','concrete']},
+  {k:'🏖️',w:['sand','gravel','glass','dirt','clay']},
+  {k:'🌿',w:['leaves','sapling','peony','azalea','grass_block','grass','flower','moss','vine','mushroom','cactus','sugar','kelp','coral','pumpkin','melon']},
+  {k:'🔥',w:['torch','lantern','campfire','furnace']},
+  {k:'🎨',w:['dye','bone','bell','flower_pot','painting','item_frame']},
+];
+function catBase(n){for(const g of BC_ORDER)for(const w of g.w)if(n.includes(w))return g.k;return'📦'}
+const CL={'🪵':'🪵 木材/原木','🔩':'🔩 金属/矿物','🪨':'🪨 石质材料','🧱':'🧱 砖/混凝土','🏖️':'🏖️ 沙/砾/玻璃','🌿':'🌿 植被/自然','🔥':'🔥 照明/燃料','🎨':'🎨 装饰/染料','📦':'📦 其他'};
+
+// ============================================================
+// STATE
+// ============================================================
+let rawData=[];let csvNameMap={};let viewMode='card';let activeCategory=null;let collected=new Set();
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({rawData,csvNameMap,collected:[...collected]}))}catch(e){}}
+function load(){
+  try{const r=localStorage.getItem(STORAGE_KEY);if(r){const d=JSON.parse(r);rawData=d.rawData||[];csvNameMap=d.csvNameMap||{};collected=new Set(d.collected||[]);return true}}catch(e){}return false}
+function clearD(){localStorage.removeItem(STORAGE_KEY);rawData=[];csvNameMap={};collected=new Set()}
+
+// ============================================================
+// CSV
+// ============================================================
+function parseCSV(t){
+  const l=t.trim().split('\n');if(l.length<2)return{};
+  const h=CSVLine(l[0]);const ni=h.findIndex(x=>x==='Item'),ti=h.findIndex(x=>x==='Total');
+  if(ni===-1||ti===-1)return{};const m={};
+  for(let i=1;i<l.length;i++){const c=CSVLine(l[i]);if(c[ni])m[c[ni].trim()]=parseInt(c[ti])||0}
+  return m;
+}
+function CSVLine(l){const r=[];let c='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){if(q&&i+1<l.length&&l[i+1]==='"'){c+='"';i++}else q=!q}else if(ch===','&&!q){r.push(c);c=''}else c+=ch}r.push(c);return r}
+function parseTXT(t){
+  const lines=t.split('\n');let hd=false,ci=-1,ti=-1;const m={};
+  for(const raw of lines){
+    const s=raw.trim();
+    if(!s.startsWith('|')||s.startsWith('+-'))continue;
+    const c=s.split('|').map(x=>x.trim()).filter(x=>x);
+    if(!hd){const ii=c.indexOf('Item'),tj=c.indexOf('Total');if(ii>-1&&tj>-1){hd=true;ci=ii;ti=tj}continue}
+    if(c.length<=Math.max(ci,ti))continue;
+    const nm=c[ci],ct=parseInt(c[ti])||0;
+    if(nm&&ct>0)m[nm]=ct;
+  }
+  return m;
+}
+
+// ============================================================
+// DATA PROCESSING
+// ============================================================
+function processData(){
+  if(!rawData||!rawData.length)return[];const m=new Map();
+  for(const e of rawData){const rid=e.RawItem;if(!m.has(rid))m.set(rid,{RawItem:rid,TotalEstimate:0,Results:new Map()});const rec=m.get(rid);rec.TotalEstimate+=e.TotalEstimate||0;if(e.Results)for(const r of e.Results){const ex=rec.Results.get(r.ResultItem);if(ex)ex.ResultTotal+=r.ResultTotal;else rec.Results.set(r.ResultItem,{...r})}}
+  const r=[];for(const[rid,rec]of m){r.push({RawItem:rec.RawItem,TotalEstimate:rec.TotalEstimate,Results:Array.from(rec.Results.values()),ChineseName:getName(rid),Category:getCategory(rid),collected:collected.has(rid)})}
+  for(const i of r){const cs=csvNameMap[i.ChineseName];if(cs)i.TotalEstimate=Math.max(i.TotalEstimate,cs)}
+  return r.sort((a,b)=>b.TotalEstimate-a.TotalEstimate);
+}
+function totalBreakdown(items){
+  if(!recipeTree)return null;const t={};
+  for(const i of items){const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
+  for(const k in t)t[k]=Math.ceil(t[k]*100)/100;return t;
+}
+
+// ============================================================
+// COLLECTION TOGGLE
+// ============================================================
+function toggleCollected(itemId){
+  if(collected.has(itemId))collected.delete(itemId);else collected.add(itemId);
+  save();renderData();
+}
+function updateAllDone(){
+  const items=processData();const allDone=items.length>0&&items.every(i=>i.collected);
+  document.getElementById('allDoneBadge').style.display=allDone?'inline':'none';
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function renderData(){
+  const items=processData();const c=document.getElementById('content');
+  const sb=document.getElementById('statsBar'),tb=document.getElementById('toolbar'),tf=document.getElementById('statTotalFmt'),sc=document.getElementById('statCollect');
+  if(!items.length){sb.style.display='none';tb.style.display='none';c.innerHTML='<div class="empty-state"><div class="icon">🏗️</div><h3>还没有加载数据</h3><p>上传 Minecraft 建材清单文件即可查看。<br>✅ 点击卡片上的方框标记已收集的材料。</p></div>';return}
+  sb.style.display='flex';tb.style.display='flex';
+  const tq=items.reduce((s,i)=>s+i.TotalEstimate,0);const cats=new Set(items.map(i=>i.Category));
+  const done=items.filter(i=>i.collected).length;
+  document.getElementById('statRaw').textContent=items.length;sc.innerHTML='✅ '+done+'/'+items.length+' 已收集';
+  document.getElementById('statTotal').textContent=tq;tf.innerHTML=fmtQty(tq);document.getElementById('statGroups').textContent=cats.size;
+  const bd=totalBreakdown(items);document.getElementById('statBase').textContent=bd?Object.keys(bd).length:0;
+  renderFilters(cats);updateAllDone();
+  const st=document.getElementById('searchBox').value.toLowerCase().trim();
+  let fi=items;if(activeCategory)fi=fi.filter(i=>i.Category===activeCategory);if(st)fi=fi.filter(i=>i.ChineseName.toLowerCase().includes(st)||i.RawItem.toLowerCase().includes(st));
+  if(!fi.length){c.innerHTML='<div class="empty-state"><div class="icon">🔍</div><h3>没有匹配的结果</h3></div>';return}
+  if(viewMode==='raw'&&bd){renderRaw(c,bd);return}
+  // 分已收集/未收集
+  const todo=fi.filter(i=>!i.collected),collectedItems=fi.filter(i=>i.collected);
+  const gr={};for(const i of todo){const cat=i.Category;if(!gr[cat])gr[cat]=[];gr[cat].push(i)}
+  let h='';
+  const co=Object.keys(gr).sort((a,b)=>{const sa=gr[a].reduce((s,i)=>s+i.TotalEstimate,0),sb=gr[b].reduce((s,i)=>s+i.TotalEstimate,0);return sb-sa});
+  for(const cat of co){const ci=gr[cat];const tc=ci.reduce((s,i)=>s+i.TotalEstimate,0);
+    h+='<div class="group-section"><div class="group-title">📦 '+cat+' <span class="count">('+ci.length+' 种，共 '+tc+' 个 / '+fmtShort(tc)+')</span></div>';
+    if(viewMode==='card'){h+='<div class="material-grid">';for(const i of ci)h+=renderCard(i);h+='</div>'}else h+=renderTable(ci);h+='</div>'}
+  // 已收集区域
+  if(collectedItems.length>0){h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集 ('+collectedItems.length+' 种)</div>';
+    if(viewMode==='card'){h+='<div class="material-grid">';for(const i of collectedItems)h+=renderCard(i);h+='</div>'}else h+=renderTable(collectedItems);h+='</div>'}
+  c.innerHTML=h;
+  document.querySelectorAll('.card-header').forEach(el=>{el.addEventListener('click',function(){const bd=this.nextElementSibling;const ar=this.querySelector('.card-arrow');if(bd&&bd.classList.contains('card-expand')){const op=bd.style.display!=='none';bd.style.display=op?'none':'block';if(ar)ar.classList.toggle('open',!op)}})});
+  imgFB();
+}
+function renderRaw(c,bd){
+  const todo=[],done=[];
+  for(const[nm,ct]of Object.entries(bd)){
+    const mc='minecraft:'+nm;
+    if(collected.has(mc))done.push([nm,ct]);else todo.push([nm,ct]);
+  }
+  todo.sort((a,b)=>b[1]-a[1]);done.sort((a,b)=>b[1]-a[1]);
+  let h='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent)"><div style="font-size:14px;font-weight:600;margin-bottom:8px">🧱 基础材料汇总</div><div style="font-size:13px;color:var(--text-muted)">按配方分解到最基础的原材料，去皮木头已折算为普通原木。优先切石机方案。</div></div>';
+  h+='<div class="material-grid">';
+  for(const[nm,ct]of todo){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
+    h+='<div class="card"><div class="card-header"><div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')"></div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+'</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
+  h+='</div>';
+  if(done.length>0){
+    h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集基础材料 ('+done.length+' 种)</div><div class="material-grid">';
+    for(const[nm,ct]of done){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
+      h+='<div class="card collected"><div class="card-header"><div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')">✓</div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+' ✅</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
+    h+='</div></div>'}
+  c.innerHTML=h;imgFB();
+}
+function renderCard(item){
+  const im=imgUrl(item.RawItem),nm=item.ChineseName,id=shortName(item.RawItem),res=item.Results||[],done=item.collected;
+  let bd='';const iname=shortName(item.RawItem);
+  if(recipeTree&&recipeTree.decompose[iname]){const dc=decompose(iname,1);const ps=Object.entries(dc).filter(([k])=>k!==iname).slice(0,3);if(ps.length>0)bd='<div class="card-breakdown" onclick="event.stopPropagation();showBreakdown(\''+item.RawItem+'\',\''+nm+'\','+item.TotalEstimate+')">🔍 查看分解</div>'}
+  let rh='';if(res.length>0){rh='<table class="results-table"><tr><th>产物</th><th style="text-align:right">数量</th><th style="text-align:right">占比</th></tr>';for(const r of res){const ri=imgUrl(r.ResultItem),rn=getName(r.ResultItem),p=((r.ResultTotal/item.TotalEstimate)*100).toFixed(1);rh+='<tr><td><div class="result-item"><div class="mini-icon"><img class="iimg" src="'+ri+'" alt="'+rn+'" loading="lazy" data-iid="'+r.ResultItem+'"><span class="fb" style="display:none">'+rn.charAt(0)+'</span></div><span>'+rn+'</span></div></td><td class="result-qty">'+r.ResultTotal+'</td><td class="result-ratio">'+p+'%</td></tr>'}rh+='</table>'}else rh='<div style="padding:8px;color:var(--text-muted);font-size:13px">直接使用</div>';
+  const es=res.length>2?'':' style="display:block"';
+  const chk=done?'<div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+item.RawItem+'\')">✓</div>':'<div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+item.RawItem+'\')"></div>';
+  return'<div class="card'+(done?' collected':'')+'">'
+    +'<div class="card-header">'+chk
+    +'<div class="item-icon"><img class="iimg" src="'+im+'" alt="'+nm+'" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+nm.charAt(0)+'</span></div>'
+    +'<div class="card-info"><div class="name">'+nm+(done?' ✅':'')+'</div><div class="sub"><span class="item-id">'+id+'</span>'+(item.CsvCount?'<span style="margin-left:8px;color:var(--accent2)">CSV:'+item.CsvCount+'</span>':'')+(bd?'<br>'+bd:'')+'</div></div>'
+    +'<div style="text-align:right"><div class="card-qty">'+item.TotalEstimate+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(item.TotalEstimate)+'</div></div>'
+    +'<span class="card-arrow'+(res.length>2?'':' open')+'">▾</span></div>'
+    +'<div class="card-expand"'+es+'><div style="display:flex;justify-content:space-between;padding:4px 4px 2px;font-size:12px;color:var(--text-muted)"><span>⬇ 去向 · 产物明细</span></div>'+rh+'</div></div>';
+}
+function renderTable(items){
+  let h='<table class="table-view"><tr><th style="width:30px"></th><th>材料</th><th style="text-align:right">需要数量</th><th>产物去向</th></tr>';
+  for(const i of items){const im=imgUrl(i.RawItem),nm=i.ChineseName;const rs=i.Results||[];const rstr=rs.map(r=>getName(r.ResultItem)+' ×'+r.ResultTotal).join('、')||'直接使用';
+    const chk=i.collected?'<div class="checkbox checked" style="width:16px;height:16px;border-radius:3px;border:2px solid var(--success);background:var(--success);display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer" onclick="toggleCollected(\''+i.RawItem+'\')">✓</div>':'<div class="checkbox" style="width:16px;height:16px;border-radius:3px;border:2px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer" onclick="toggleCollected(\''+i.RawItem+'\')"></div>';
+    h+='<tr style="'+(i.collected?'opacity:.5':'')+'"><td style="vertical-align:middle;text-align:center">'+chk+'</td><td><div class="mini-icon-table"><img class="iimg" src="'+im+'" alt="'+nm+'" loading="lazy" data-iid="'+i.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:16px">'+nm.charAt(0)+'</span></div>'+nm+(i.collected?' ✅':'')+' <span style="font-size:11px;color:var(--text-muted);margin-left:6px">'+shortName(i.RawItem)+'</span><div style="font-size:11px;color:var(--accent2)">'+fmtShort(i.TotalEstimate)+'</div></td><td style="text-align:right;font-weight:700;color:var(--accent);vertical-align:middle">'+i.TotalEstimate+'</td><td style="color:var(--text-muted);font-size:13px;vertical-align:middle">'+rstr+'</td></tr>'}
+  h+='</table>';return h;
+}
+function renderFilters(cats){
+  const c=document.getElementById('filterGroup');const s=Array.from(cats).sort();
+  let h='<button class="filter-tag '+(!activeCategory?'active':'')+'" onclick="setCategory(null)">🏷️ 全部</button>';
+  for(const x of s)h+='<button class="filter-tag '+(activeCategory===x?'active':'')+'" onclick="setCategory(\''+x+'\')">'+x+'</button>';c.innerHTML=h;
+}
+function imgFB(){
+  document.querySelectorAll('.iimg').forEach(img=>{img.addEventListener('error',function(){const id=this.dataset.iid;if(id&&!this.dataset.fb){this.dataset.fb='1';this.src=imgFallback(id);return}this.style.display='none';const fb=this.nextElementSibling;if(fb)fb.style.display='flex'})});
+}
+
+// ============================================================
+// BREAKDOWN MODAL
+// ============================================================
+function showBreakdown(itemId,itemName,totalCount){
+  const modal=document.getElementById('breakdownModal'),title=document.getElementById('breakdownTitle'),content=document.getElementById('breakdownContent');
+  const sn=shortName(itemId);
+  if(!recipeTree||!recipeTree.decompose[sn]){title.innerHTML='📦 '+itemName+' - 无法分解';content.innerHTML='<p style="color:var(--text-muted)">该材料无法进一步分解为基础材料。</p>';modal.style.display='flex';return}
+  const dc=decompose(sn,totalCount);const gr={};
+  for(const[nm,ct]of Object.entries(dc)){if(nm===sn)continue;const cat=catBase(nm);if(!gr[cat])gr[cat]={};gr[cat][nm]=ct}
+  title.innerHTML='📦 '+itemName+' ×'+totalCount+'  →  基础材料';
+  let h='<div style="margin-bottom:12px;padding:10px;background:var(--card);border-radius:8px;font-size:13px;color:var(--text-muted)">合计约 <b style="color:var(--accent)">'+Math.ceil(totalCount)+'</b> 个 → 分解为 <b style="color:var(--accent2)">'+Object.keys(dc).length+'</b> 种基础材料<div style="margin-top:4px">'+fmtQty(Math.ceil(totalCount))+'</div></div>';
+  const ko=['🪵','🔩','🪨','🧱','🏖️','🌿','🔥','🎨','📦'];
+  for(const cat of ko){if(!gr[cat])continue;const its=Object.entries(gr[cat]).sort((a,b)=>b[1]-a[1]);const lb=CL[cat]||cat;h+='<div class="breakdown-cat"><div class="breakdown-cat-title">'+lb+'</div>';
+    for(const[nm,ct]of its){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);h+='<div class="breakdown-item"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'"><span class="fb" style="display:none">'+cn.charAt(0)+'</span></div><span>'+cn+'</span><span class="qty">'+cc+' '+fmtShort(cc)+'</span></div>'}
+    h+='</div>'}
+  content.innerHTML=h;modal.style.display='flex';imgFB();
+}
+function closeBreakdown(){document.getElementById('breakdownModal').style.display='none'}
+
+// ============================================================
+// CRAFT GUIDE
+// ============================================================
+function showCraftGuide(){
+  const items=processData();if(!items.length){showToast('没有数据','error');return}
+  const modal=document.getElementById('breakdownModal'),title=document.getElementById('breakdownTitle'),content=document.getElementById('breakdownContent');
+  title.innerHTML='🧭 合成指导';
+  let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">将原材料按推荐方式合成为所需产物。优先使用切石机加工石质材料，切石机比合成台更省材料（尤其是楼梯类）。</div>';
+  for(const item of items){
+    const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
+    const im=imgUrl(item.RawItem);
+    const res=item.Results||[];
+    h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
+    if(res.length===0){h+='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';h+='</div>';continue}
+    for(const r of res){
+      const rn=getName(r.ResultItem),rc=r.ResultTotal;
+      const ri=imgUrl(r.ResultItem);
+      const baseId=item.RawItem;
+      const bn=shortName(baseId);
+      // 判断合成方式
+      let method='合成台',mClass='craft-method-crafting';
+      const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
+      const rsn=shortName(r.ResultItem);
+      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){method='🔪 切石机';mClass='craft-method-stonecutter'}
+      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){method='🔥 熔炉';mClass='craft-method-furnace'}
+      h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
+        +'<span class="arrow">→</span>'
+        +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+ri+'" alt="" loading="lazy" data-iid="'+r.ResultItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+rn.charAt(0)+'</span></div>'+rn+' <b style="color:var(--accent2)">×'+rc+'</b></div>'
+        +'<span class="method '+mClass+'">'+method+'</span></div>';
+    }
+    h+='</div>';
+  }
+  h+='</div>';
+  content.innerHTML=h;modal.style.display='flex';imgFB();
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function setCategory(cat){activeCategory=cat;renderData()}
+function setViewMode(m){
+  viewMode=m;document.getElementById('viewCard').className=m==='card'?'active':'';document.getElementById('viewList').className=m==='list'?'active':'';document.getElementById('viewRaw').className=m==='raw'?'active':'';renderData()
+}
+function showToast(msg,t){
+  const c=document.getElementById('toastContainer');const e=document.createElement('div');e.className='toast '+(t||'info');e.textContent=msg;c.appendChild(e);
+  setTimeout(()=>{e.style.opacity='0';e.style.transform='translateX(100%)';e.style.transition='all .3s';setTimeout(()=>e.remove(),300)},3000);
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleFiles(files){
+  let p=files.length;if(!p)return;
+  for(const f of files){const r=new FileReader();const n=f.name.toLowerCase();
+    const isJ=n.endsWith('.json'),isC=n.endsWith('.csv'),isT=n.endsWith('.txt');
+    r.onload=function(e){try{const t=e.target.result;
+      if(isJ){const d=JSON.parse(t);if(Array.isArray(d)){rawData=d;showToast('✅ JSON: '+f.name+' ('+d.length+' 种)','success')}else showToast('JSON 需为数组','error')}
+      else if(isC){const m=parseCSV(t);const cnt=Object.keys(m).length;if(cnt>0){Object.assign(csvNameMap,m);showToast('✅ CSV: '+f.name+' ('+cnt+' 项)','success')}else showToast('CSV 为空','error')}
+      else if(isT){const m=parseTXT(t);const cnt=Object.keys(m).length;if(cnt>0){const nr=[];for(const[cn,ct]of Object.entries(m)){const id=CSV_RMAP[cn];if(id)nr.push({RawItem:'minecraft:'+id,TotalEstimate:ct,Results:[]})}if(nr.length>0){if(!rawData)rawData=[];rawData=rawData.concat(nr);showToast('✅ TXT: '+f.name+' ('+nr.length+' 种)','success')}else{Object.assign(csvNameMap,m);showToast('⚠️ TXT: 未能匹配到对应材料','warning')}}else showToast('TXT 未能解析出数据','error')}
+    }catch(e){showToast('解析失败: '+e.message,'error')}if(--p===0)finalizeLoad()};
+    r.onerror=function(){showToast('读取失败','error');if(--p===0)finalizeLoad()};r.readAsText(f);
+  }
+}
+function finalizeLoad(){save();updateSrc();renderData()}
+function updateSrc(){
+  const el=document.getElementById('dataSourceInfo'),tx=document.getElementById('dataSourceText');
+  if(rawData.length>0||Object.keys(csvNameMap).length>0){el.style.display='flex';const p=[];if(rawData.length>0)p.push('JSON: '+rawData.length+' 种');if(Object.keys(csvNameMap).length>0)p.push(Object.keys(csvNameMap).length+' 项');tx.textContent=p.join(' | ')}
+  else el.style.display='none';
+}
+function toggleSampleData(){rawData=SAMPLE_JSON;csvNameMap=SAMPLE_CSV;save();updateSrc();renderData();showToast('✅ 已加载示例数据','success')}
+function clearAllData(){if(!rawData.length&&!Object.keys(csvNameMap).length){showToast('没有数据','info');return}if(!confirm('确定清空？'))return;clearD();updateSrc();renderData();showToast('已清空','info')}
+
+// ============================================================
+// SAMPLE DATA
+// ============================================================
+const SAMPLE_JSON=[{"RawItem":"minecraft:cobbled_deepslate","TotalEstimate":218,"Steps":[],"Results":[{"ResultItem":"minecraft:deepslate_brick_wall","ResultTotal":6},{"ResultItem":"minecraft:deepslate_brick_stairs","ResultTotal":113},{"ResultItem":"minecraft:deepslate_bricks","ResultTotal":60},{"ResultItem":"minecraft:cobbled_deepslate","ResultTotal":5},{"ResultItem":"minecraft:deepslate_brick_slab","ResultTotal":59},{"ResultItem":"minecraft:cobbled_deepslate_stairs","ResultTotal":4}]},{"RawItem":"minecraft:bone","TotalEstimate":1,"Steps":[],"Results":[{"ResultItem":"minecraft:white_concrete","ResultTotal":9}]},{"RawItem":"minecraft:sand","TotalEstimate":36,"Steps":[],"Results":[{"ResultItem":"minecraft:glass","ResultTotal":24},{"ResultItem":"minecraft:light_gray_concrete_powder","ResultTotal":1},{"ResultItem":"minecraft:white_concrete","ResultTotal":9}]},{"RawItem":"minecraft:gravel","TotalEstimate":14,"Steps":[],"Results":[{"ResultItem":"minecraft:gravel","ResultTotal":2},{"ResultItem":"minecraft:light_gray_concrete_powder","ResultTotal":1},{"ResultItem":"minecraft:white_concrete","ResultTotal":9}]},{"RawItem":"minecraft:cobblestone","TotalEstimate":53,"Steps":[],"Results":[{"ResultItem":"minecraft:stone_brick_stairs","ResultTotal":15},{"ResultItem":"minecraft:stone_brick_wall","ResultTotal":9},{"ResultItem":"minecraft:stone_bricks","ResultTotal":27},{"ResultItem":"minecraft:diorite","ResultTotal":1}]},{"RawItem":"minecraft:quartz","TotalEstimate":2,"Steps":[],"Results":[{"ResultItem":"minecraft:diorite","ResultTotal":1}]},{"RawItem":"minecraft:light_gray_dye","TotalEstimate":1,"Steps":[],"Results":[{"ResultItem":"minecraft:light_gray_concrete_powder","ResultTotal":1}]},{"RawItem":"minecraft:bell","TotalEstimate":1,"Steps":[],"Results":[{"ResultItem":"minecraft:bell","ResultTotal":1}]},{"RawItem":"minecraft:cherry_hanging_sign","TotalEstimate":24,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_hanging_sign","ResultTotal":24}]},{"RawItem":"minecraft:cherry_stairs","TotalEstimate":291,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_stairs","ResultTotal":291}]},{"RawItem":"minecraft:peony","TotalEstimate":2,"Steps":[],"Results":[{"ResultItem":"minecraft:peony","ResultTotal":2}]},{"RawItem":"minecraft:cherry_log","TotalEstimate":257,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_log","ResultTotal":194},{"ResultItem":"minecraft:cherry_planks","ResultTotal":252}]},{"RawItem":"minecraft:cherry_sapling","TotalEstimate":4,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_sapling","ResultTotal":4}]},{"RawItem":"minecraft:cherry_trapdoor","TotalEstimate":66,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_trapdoor","ResultTotal":66}]},{"RawItem":"minecraft:cherry_slab","TotalEstimate":10,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_slab","ResultTotal":10}]},{"RawItem":"minecraft:cherry_leaves","TotalEstimate":38,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_leaves","ResultTotal":38}]},{"RawItem":"minecraft:torch","TotalEstimate":12,"Steps":[],"Results":[{"ResultItem":"minecraft:lantern","ResultTotal":7},{"ResultItem":"minecraft:torch","ResultTotal":5}]},{"RawItem":"minecraft:grass_block","TotalEstimate":13,"Steps":[],"Results":[{"ResultItem":"minecraft:grass_block","ResultTotal":13}]},{"RawItem":"minecraft:stripped_cherry_log","TotalEstimate":373,"Steps":[],"Results":[{"ResultItem":"minecraft:stripped_cherry_log","ResultTotal":373}]},{"RawItem":"minecraft:iron_ingot","TotalEstimate":6,"Steps":[],"Results":[{"ResultItem":"minecraft:lantern","ResultTotal":7}]},{"RawItem":"minecraft:iron_nugget","TotalEstimate":2,"Steps":[],"Results":[{"ResultItem":"minecraft:lantern","ResultTotal":7}]},{"RawItem":"minecraft:brick","TotalEstimate":15,"Steps":[],"Results":[{"ResultItem":"minecraft:flower_pot","ResultTotal":5}]},{"RawItem":"minecraft:flowering_azalea","TotalEstimate":1,"Steps":[],"Results":[{"ResultItem":"minecraft:flowering_azalea","ResultTotal":1}]},{"RawItem":"minecraft:cherry_fence_gate","TotalEstimate":12,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_fence_gate","ResultTotal":12}]},{"RawItem":"minecraft:cherry_door","TotalEstimate":1,"Steps":[],"Results":[{"ResultItem":"minecraft:cherry_door","ResultTotal":1}]},{"RawItem":"minecraft:calcite","TotalEstimate":49,"Steps":[],"Results":[{"ResultItem":"minecraft:calcite","ResultTotal":49}]}];
+const SAMPLE_CSV={"去皮樱花原木":373,"樱花木楼梯":291,"樱花木板":252,"樱花原木":194,"深板岩砖楼梯":113,"樱花木活板门":66,"深板岩砖":60,"深板岩砖台阶":59,"方解石":49,"樱花树叶":38,"石砖":27,"悬挂式樱花木告示牌":24,"玻璃":24,"石砖楼梯":15,"草方块":13,"樱花木栅栏门":12,"樱花木台阶":10,"白色混凝土":9,"石砖墙":9,"灯笼":7,"深板岩砖墙":6,"深板岩圆石":5,"火把":5,"花盆":5,"樱花树苗":4,"深板岩圆石楼梯":4,"沙砾":2,"牡丹":2,"樱花木门":1,"淡灰色混凝土粉末":1,"盛开的杜鹃花丛":1,"钟":1,"闪长岩":1};
+
+// ============================================================
+// INIT
+// ============================================================
+(async function(){
+  const ua=document.getElementById('uploadArea'),fi=document.getElementById('fileInput');
+  ua.addEventListener('click',()=>fi.click());
+  ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dragover')});
+  ua.addEventListener('dragleave',()=>ua.classList.remove('dragover'));
+  ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('dragover');if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files)});
+  fi.addEventListener('change',()=>{if(fi.files.length){handleFiles(fi.files);fi.value=''}});
+  await loadRT();
+  if(load()&&(rawData.length>0||Object.keys(csvNameMap).length>0)){updateSrc();renderData();showToast('📂 已恢复上次保存的数据','info')}
+})();
+</script>
+</body>
+</html>
