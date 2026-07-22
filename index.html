@@ -132,7 +132,6 @@ body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;backgroun
   <h1><span>⛏️</span> 建材清单 <span id="allDoneBadge" style="display:none;font-size:12px;background:var(--success);padding:2px 8px;border-radius:10px">✅ 全部收集</span></h1>
   <div class="header-controls">
     <button class="btn btn-secondary" onclick="toggleSampleData()">📥 加载示例</button>
-    <button class="btn btn-secondary" onclick="showCraftGuide()">🧭 合成指导</button>
     <button class="btn btn-secondary" onclick="clearAllData()">🗑️ 清空</button>
   </div>
 </div>
@@ -662,6 +661,9 @@ function renderRaw(c,bd){
     for(const[nm,ct]of done){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
       h+='<div class="card collected"><div class="card-header"><div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')">✓</div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+' ✅</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
     h+='</div></div>'}
+  // 合并合成指导
+  const guideHtml=buildCraftGuideHtml();
+  if(guideHtml)h+='<div style="margin-top:32px;padding-top:24px;border-top:2px solid var(--border)"><div class="group-title" style="font-size:18px;padding-bottom:16px">🔗 合成链详情</div><div class="craft-guide">'+guideHtml+'</div></div>';
   c.innerHTML=h;imgFB();
 }
 function renderCard(item){
@@ -753,10 +755,8 @@ function getCraftMethod(itemId){
   if(id.startsWith('stripped_'))return{method:'去皮',mClass:'craft-method-crafting'};
   return{method:'合成台',mClass:'craft-method-crafting'};
 }
-function showCraftGuide(){
-  const items=processData();if(!items.length){showToast('没有数据','error');return}
-  const modal=document.getElementById('breakdownModal'),title=document.getElementById('breakdownTitle'),content=document.getElementById('breakdownContent');
-  title.innerHTML='🧭 合成指导';
+function buildCraftGuideHtml(){
+  const items=processData();if(!items.length)return '';
   // 构建反向追溯：基础材料 → 所有消耗它的物品（通过配方树分解）
   const baseConsumers={};
   if(recipeTree){
@@ -771,21 +771,19 @@ function showCraftGuide(){
       }
     }
   }
-  let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">从基础材料出发，展示完整合成链。中间产物下缩进展示其下游物品。</div>';
+  let h='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">从基础材料出发，展示完整合成链。中间产物下缩进展示其下游物品。</div>';
   for(const item of items){
     if(item.collected)continue;
     const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
-    // 只展示基础材料（配方树中不可进一步分解的原材料）
     if(recipeTree&&recipeTree.decompose[id])continue;
     const res=(item.Results||[]).filter(r=>r.ResultItem!==item.RawItem);
-    // 如果所有产物都被收集了，直接跳过不显示
     if(res.length>0&&res.every(r=>collected.has(r.ResultItem)))continue;
     const im=imgUrl(item.RawItem);
     h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
     // 收集所有下游物品（直接结果 + 间接消耗）
     const seen=new Set(),downstream=[];
     for(const r of res){
-      if(collected.has(r.ResultItem))continue; // 跳过已收集的产物
+      if(collected.has(r.ResultItem))continue;
       const rid=shortName(r.ResultItem);
       seen.add(rid);
       const m=getCraftMethod(r.ResultItem);
@@ -814,9 +812,7 @@ function showCraftGuide(){
     for(const[m,c]of Object.entries(byMethod))sumHtml.push(m+' '+c+' 种');
     if(sumHtml.length)h+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+sumHtml.map(s=>'<span>'+s+'</span>').join('')+'</div>';
     // 按中间产物分组渲染
-    // groups: intermediateId -> {header(直接结果)|null, subItems:[]}
     const groups={}, directItems=[], noChainItems=[], seenInGroup=new Set();
-    // 第一步：为每个间接产物找到中间产物分组
     for(const d of downstream){
       if(d.direct) continue;
       const chain=getChain(d.rid,id);
@@ -829,7 +825,6 @@ function showCraftGuide(){
         noChainItems.push(d);
       }
     }
-    // 第二步：直接结果匹配分组（若该直接结果是某分组的中间产物，则作为分组标题）
     for(const d of downstream){
       if(!d.direct) continue;
       if(groups[d.rid]){
@@ -839,7 +834,6 @@ function showCraftGuide(){
         directItems.push(d);
       }
     }
-    // 第三步：无标题的分组，尝试从 noChainItems 中找同名的作为标题
     const usedInGroup=new Set();
     for(const[mid,grp]of Object.entries(groups)){
       if(grp.header) continue;
@@ -849,48 +843,39 @@ function showCraftGuide(){
         usedInGroup.add(mid);
       }
     }
-    // 从 noChainItems 中移除已被分组征用的
     for(const mid of usedInGroup){
       const idx=noChainItems.findIndex(d=>d.rid===mid);
       if(idx!==-1)noChainItems.splice(idx,1);
     }
-    // 渲染
     function rowHtml(src,srci,srcName,tgt,tgti,tgtName,qty,extra,method,mClass,sub){
       return '<div class="arrow-row'+(sub?' sub-row':'')+'"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+srci+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+srcName.charAt(0)+'</span></div>'+srcName+'</div>'
         +'<span class="arrow">→</span>'
         +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+tgti+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+tgtName.charAt(0)+'</span></div>'+tgtName+' <b style="color:var(--accent2)">×'+qty+'</b>'+(extra||'')+'</div>'
         +'<span class="method '+mClass+'">'+method+'</span></div>';
     }
-    // 渲染无中间产物的直接结果
     for(const d of directItems){
       const di=imgUrl('minecraft:'+d.rid);
       h+=rowHtml(nm,im,nm,d.rid,di,d.name,d.qty,'',d.method,d.mClass);
     }
-    // 渲染有中间产物分组的
     for(const[mid,grp]of Object.entries(groups)){
       const mi=imgUrl('minecraft:'+mid);
       const mn=getName('minecraft:'+mid);
       const m=getCraftMethod('minecraft:'+mid);
       if(grp.header){
-        // 计算该分组下中间产物的总用量
         let totalMid=grp.header.qty;
         for(const d of grp.subItems){
           const batch=recipeTree&&recipeTree.batch&&recipeTree.batch[d.rid];
           if(batch){const ing=Object.keys(batch).find(k=>k!=='output');if(ing&&ing===mid)totalMid+=Math.ceil(d.qty/batch.output)*batch[ing];}
           else{const ent=recipeTree&&recipeTree.decompose[d.rid];if(ent&&ent[mid]!==undefined)totalMid+=Math.ceil(d.qty*ent[mid]);}
         }
-        // 有标题：显示 基础材料 → 中间产物（合并总量）
         h+=rowHtml(nm,im,nm,mid,mi,mn,totalMid,'',grp.header.method,grp.header.mClass);
       }
-      // 子项缩进
       for(const d of grp.subItems){
         const di=imgUrl('minecraft:'+d.rid);
         let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
-        // 子项从中间产物开始
         h+=rowHtml(mn,mi,mn,d.rid,di,d.name,d.qty,extra,d.method,d.mClass,true);
       }
     }
-    // 渲染无链条的间接产物
     for(const d of noChainItems){
       const di=imgUrl('minecraft:'+d.rid);
       let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
@@ -898,7 +883,13 @@ function showCraftGuide(){
     }
     h+='</div>';
   }
-  h+='</div>';
+  return h;
+}
+function showCraftGuide(){
+  const h=buildCraftGuideHtml();
+  if(!h){showToast('没有数据','error');return}
+  const modal=document.getElementById('breakdownModal'),title=document.getElementById('breakdownTitle'),content=document.getElementById('breakdownContent');
+  title.innerHTML='🧭 合成指导';
   content.innerHTML=h;modal.style.display='flex';imgFB();
 }
 
