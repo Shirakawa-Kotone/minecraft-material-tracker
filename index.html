@@ -671,8 +671,6 @@ function showCraftGuide(){
   let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">将原材料按推荐方式合成为所需产物。优先使用切石机加工石质材料，切石机比合成台更省材料（尤其是楼梯类）。</div>';
   for(const item of items){
     const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
-    // 跳过非基础材料（配方树中可进一步分解的材料）
-    if(recipeTree&&recipeTree.decompose[id]) continue;
     const im=imgUrl(item.RawItem);
     const res=item.Results||[];
     h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
@@ -688,8 +686,8 @@ function showCraftGuide(){
       const rsn=shortName(r.ResultItem);
       const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
       let m='合成台';
-      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){m='🔪 切石机'}
-      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){m='🔥 熔炉'}
+      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){m='切石机'}
+      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){m='熔炉'}
       methodTotals[m]=(methodTotals[m]||0)+r.ResultTotal;
       totalProcessed+=r.ResultTotal;
     }
@@ -708,8 +706,8 @@ function showCraftGuide(){
       // 判断合成方式
       let method='合成台',mClass='craft-method-crafting';
       const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
-      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){method='🔪 切石机';mClass='craft-method-stonecutter'}
-      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){method='🔥 熔炉';mClass='craft-method-furnace'}
+      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){method='切石机';mClass='craft-method-stonecutter'}
+      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){method='熔炉';mClass='craft-method-furnace'}
       h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
         +'<span class="arrow">→</span>'
         +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+ri+'" alt="" loading="lazy" data-iid="'+r.ResultItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+rn.charAt(0)+'</span></div>'+rn+' <b style="color:var(--accent2)">×'+rc+'</b></div>'
