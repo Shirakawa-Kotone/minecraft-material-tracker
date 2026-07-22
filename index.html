@@ -473,6 +473,15 @@ async function loadRT(){
 }
 function decompose(name,count,useCeil){
   if(!recipeTree||!recipeTree.decompose[name])return{[name]:count};
+  // 批量合成处理：useCeil 时按整批次计算（如 6 木板做 3 门）
+  if(useCeil&&recipeTree.batch&&recipeTree.batch[name]){
+    const batch=recipeTree.batch[name];
+    const ing=Object.keys(batch).find(k=>k!=='output');
+    if(ing&&batch[ing]&&batch.output){
+      const batches=Math.ceil(count/batch.output);
+      return decompose(ing,batches*batch[ing],true);
+    }
+  }
   const r={};
   for(const[base,ratio]of Object.entries(recipeTree.decompose[name])){
     const next=useCeil?Math.ceil(ratio*count):ratio*count;
