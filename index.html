@@ -645,10 +645,6 @@ function renderData(){
   imgFB();
 }
 function renderRaw(c,bd){
-  const items=processData();
-  const baseConsumers=buildConsumersMap(items);
-  const itemMap={};
-  for(const i of items)itemMap[shortName(i.RawItem)]=i;
   const todo=[],done=[];
   for(const[nm,ct]of Object.entries(bd)){
     const mc='minecraft:'+nm;
@@ -658,15 +654,16 @@ function renderRaw(c,bd){
   let h='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent)"><div style="font-size:14px;font-weight:600;margin-bottom:8px">🧱 基础材料汇总</div><div style="font-size:13px;color:var(--text-muted)">按配方分解到最基础的原材料，去皮木头已折算为普通原木。优先切石机方案。</div></div>';
   h+='<div class="material-grid">';
   for(const[nm,ct]of todo){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
-    let chainHtml='';const it=itemMap[nm];
-    if(it&&!it.collected)chainHtml=buildChainForItem(it,baseConsumers);
-    h+='<div class="card"><div class="card-header"><div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')"></div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+'</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div>'+(chainHtml?'<div class="card-expand" style="display:block;padding:0 16px 14px"><div style="border-top:1px solid var(--border);padding-top:10px;font-size:13px">'+chainHtml+'</div></div>':'')+'</div>'}
+    h+='<div class="card"><div class="card-header"><div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')"></div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+'</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
   h+='</div>';
   if(done.length>0){
     h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集基础材料 ('+done.length+' 种)</div><div class="material-grid">';
     for(const[nm,ct]of done){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
       h+='<div class="card collected"><div class="card-header"><div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')">✓</div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+' ✅</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
     h+='</div></div>'}
+  // 合并合成指导
+  const guideHtml=buildCraftGuideHtml();
+  if(guideHtml)h+='<div style="margin-top:32px;padding-top:24px;border-top:2px solid var(--border)"><div class="group-title" style="font-size:18px;padding-bottom:16px">🔗 合成链详情</div><div class="craft-guide">'+guideHtml+'</div></div>';
   c.innerHTML=h;imgFB();
 }
 function renderCard(item){
@@ -758,139 +755,133 @@ function getCraftMethod(itemId){
   if(id.startsWith('stripped_'))return{method:'去皮',mClass:'craft-method-crafting'};
   return{method:'合成台',mClass:'craft-method-crafting'};
 }
-function buildConsumersMap(items){
-  const m={};
-  if(!recipeTree)return m;
-  for(const item of items){
-    if(item.collected)continue;
-    const id=shortName(item.RawItem);
-    if(!recipeTree.decompose[id])continue;
-    const bases=decompose(id,item.TotalEstimate,true);
-    for(const[baseId,qty]of Object.entries(bases)){
-      if(!m[baseId])m[baseId]=[];
-      m[baseId].push({item,baseConsumed:Math.ceil(qty)});
-    }
-  }
-  return m;
-}
-function buildChainForItem(item,baseConsumers){
-  const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
-  if(recipeTree&&recipeTree.decompose[id])return'';
-  const res=(item.Results||[]).filter(r=>r.ResultItem!==item.RawItem);
-  if(res.length>0&&res.every(r=>collected.has(r.ResultItem)))return'';
-  const im=imgUrl(item.RawItem);
-  let h='';
-  // 收集所有下游物品（直接结果 + 间接消耗）
-  const seen=new Set(),downstream=[];
-  for(const r of res){
-    if(collected.has(r.ResultItem))continue;
-    const rid=shortName(r.ResultItem);
-    seen.add(rid);
-    const m=getCraftMethod(r.ResultItem);
-    downstream.push({rid,name:getName(r.ResultItem),qty:r.ResultTotal,method:m.method,mClass:m.mClass,direct:true});
-  }
-  const consumers=baseConsumers[id]||[];
-  for(const c of consumers){
-    const cid=shortName(c.item.RawItem);
-    if(seen.has(cid))continue;
-    seen.add(cid);
-    const m=getCraftMethod(c.item.RawItem);
-    downstream.push({rid:cid,name:c.item.ChineseName,qty:c.item.TotalEstimate,baseConsumed:c.baseConsumed,method:m.method,mClass:m.mClass,direct:false});
-  }
-  if(downstream.length===0)return'<div style="color:var(--text-muted);font-size:12px;padding:4px 0">直接使用，无需合成</div>';
-  // 按方法统计
-  const byMethod={}; let totalBaseUsed=0;
-  for(const d of downstream){
-    if(!byMethod[d.method])byMethod[d.method]=0;
-    byMethod[d.method]++;
-    if(!d.direct) totalBaseUsed+=d.baseConsumed||0;
-    else{const w=decompose(d.rid,d.qty,true);if(w[id])totalBaseUsed+=w[id];}
-  }
-  let sumHtml=[];
-  const du=Math.max(0,Math.round(cnt-totalBaseUsed));
-  if(du>0)sumHtml.push('直接使用 '+du+' 个');
-  for(const[m,c]of Object.entries(byMethod))sumHtml.push(m+' '+c+' 种');
-  if(sumHtml.length)h+='<div style="font-size:11px;color:var(--text-muted);padding:4px 0 8px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+sumHtml.map(s=>'<span>'+s+'</span>').join('')+'</div>';
-  // 按中间产物分组渲染
-  const groups={}, directItems=[], noChainItems=[], seenInGroup=new Set();
-  for(const d of downstream){
-    if(d.direct) continue;
-    const chain=getChain(d.rid,id);
-    if(chain&&chain.length>0){
-      const mid=chain[0];
-      if(!groups[mid])groups[mid]={header:null,subItems:[]};
-      groups[mid].subItems.push(d);
-      seenInGroup.add(d.rid);
-    } else {
-      noChainItems.push(d);
-    }
-  }
-  for(const d of downstream){
-    if(!d.direct) continue;
-    if(groups[d.rid]){
-      groups[d.rid].header=d;
-      seenInGroup.add(d.rid);
-    } else {
-      directItems.push(d);
-    }
-  }
-  const usedInGroup=new Set();
-  for(const[mid,grp]of Object.entries(groups)){
-    if(grp.header) continue;
-    const idx=noChainItems.findIndex(d=>d.rid===mid);
-    if(idx!==-1){grp.header=noChainItems[idx];usedInGroup.add(mid);}
-  }
-  for(const mid of usedInGroup){
-    const idx=noChainItems.findIndex(d=>d.rid===mid);
-    if(idx!==-1)noChainItems.splice(idx,1);
-  }
-  function rowHtml(src,srci,srcName,tgt,tgti,tgtName,qty,extra,method,mClass,sub){
-    return '<div class="arrow-row'+(sub?' sub-row':'')+'"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+srci+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+srcName.charAt(0)+'</span></div>'+srcName+'</div>'
-      +'<span class="arrow">→</span>'
-      +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+tgti+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+tgtName.charAt(0)+'</span></div>'+tgtName+' <b style="color:var(--accent2)">×'+qty+'</b>'+(extra||'')+'</div>'
-      +'<span class="method '+mClass+'">'+method+'</span></div>';
-  }
-  for(const d of directItems){
-    const di=imgUrl('minecraft:'+d.rid);
-    h+=rowHtml(nm,im,nm,d.rid,di,d.name,d.qty,'',d.method,d.mClass);
-  }
-  for(const[mid,grp]of Object.entries(groups)){
-    const mi=imgUrl('minecraft:'+mid);
-    const mn=getName('minecraft:'+mid);
-    const m=getCraftMethod('minecraft:'+mid);
-    if(grp.header){
-      let totalMid=grp.header.qty;
-      for(const d of grp.subItems){
-        const batch=recipeTree&&recipeTree.batch&&recipeTree.batch[d.rid];
-        if(batch){const ing=Object.keys(batch).find(k=>k!=='output');if(ing&&ing===mid)totalMid+=Math.ceil(d.qty/batch.output)*batch[ing];}
-        else{const ent=recipeTree&&recipeTree.decompose[d.rid];if(ent&&ent[mid]!==undefined)totalMid+=Math.ceil(d.qty*ent[mid]);}
-      }
-      h+=rowHtml(nm,im,nm,mid,mi,mn,totalMid,'',grp.header.method,grp.header.mClass);
-    }
-    for(const d of grp.subItems){
-      const di=imgUrl('minecraft:'+d.rid);
-      let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
-      h+=rowHtml(mn,mi,mn,d.rid,di,d.name,d.qty,extra,d.method,d.mClass,true);
-    }
-  }
-  for(const d of noChainItems){
-    const di=imgUrl('minecraft:'+d.rid);
-    let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
-    h+=rowHtml(nm,im,nm,d.rid,di,d.name,d.qty,extra,d.method,d.mClass);
-  }
-  return h;
-}
 function buildCraftGuideHtml(){
   const items=processData();if(!items.length)return '';
-  const baseConsumers=buildConsumersMap(items);
+  // 构建反向追溯：基础材料 → 所有消耗它的物品（通过配方树分解）
+  const baseConsumers={};
+  if(recipeTree){
+    for(const item of items){
+      if(item.collected)continue;
+      const id=shortName(item.RawItem);
+      if(!recipeTree.decompose[id])continue;
+      const bases=decompose(id,item.TotalEstimate,true);
+      for(const[baseId,qty]of Object.entries(bases)){
+        if(!baseConsumers[baseId])baseConsumers[baseId]=[];
+        baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty)});
+      }
+    }
+  }
   let h='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">从基础材料出发，展示完整合成链。中间产物下缩进展示其下游物品。</div>';
   for(const item of items){
     if(item.collected)continue;
-    const chain=buildChainForItem(item,baseConsumers);
-    if(!chain)continue;
     const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
+    if(recipeTree&&recipeTree.decompose[id])continue;
+    const res=(item.Results||[]).filter(r=>r.ResultItem!==item.RawItem);
+    if(res.length>0&&res.every(r=>collected.has(r.ResultItem)))continue;
     const im=imgUrl(item.RawItem);
-    h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>'+chain+'</div>';
+    h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
+    // 收集所有下游物品（直接结果 + 间接消耗）
+    const seen=new Set(),downstream=[];
+    for(const r of res){
+      if(collected.has(r.ResultItem))continue;
+      const rid=shortName(r.ResultItem);
+      seen.add(rid);
+      const m=getCraftMethod(r.ResultItem);
+      downstream.push({rid,name:getName(r.ResultItem),qty:r.ResultTotal,method:m.method,mClass:m.mClass,direct:true});
+    }
+    const consumers=baseConsumers[id]||[];
+    for(const c of consumers){
+      const cid=shortName(c.item.RawItem);
+      if(seen.has(cid))continue;
+      seen.add(cid);
+      const m=getCraftMethod(c.item.RawItem);
+      downstream.push({rid:cid,name:c.item.ChineseName,qty:c.item.TotalEstimate,baseConsumed:c.baseConsumed,method:m.method,mClass:m.mClass,direct:false});
+    }
+    if(downstream.length===0){h+='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';h+='</div>';continue}
+    // 按方法统计
+    const byMethod={}; let totalBaseUsed=0;
+    for(const d of downstream){
+      if(!byMethod[d.method])byMethod[d.method]=0;
+      byMethod[d.method]++;
+      if(!d.direct) totalBaseUsed+=d.baseConsumed||0;
+      else{const w=decompose(d.rid,d.qty,true);if(w[id])totalBaseUsed+=w[id];}
+    }
+    let sumHtml=[];
+    const du=Math.max(0,Math.round(cnt-totalBaseUsed));
+    if(du>0)sumHtml.push('直接使用 '+du+' 个');
+    for(const[m,c]of Object.entries(byMethod))sumHtml.push(m+' '+c+' 种');
+    if(sumHtml.length)h+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+sumHtml.map(s=>'<span>'+s+'</span>').join('')+'</div>';
+    // 按中间产物分组渲染
+    const groups={}, directItems=[], noChainItems=[], seenInGroup=new Set();
+    for(const d of downstream){
+      if(d.direct) continue;
+      const chain=getChain(d.rid,id);
+      if(chain&&chain.length>0){
+        const mid=chain[0];
+        if(!groups[mid])groups[mid]={header:null,subItems:[]};
+        groups[mid].subItems.push(d);
+        seenInGroup.add(d.rid);
+      } else {
+        noChainItems.push(d);
+      }
+    }
+    for(const d of downstream){
+      if(!d.direct) continue;
+      if(groups[d.rid]){
+        groups[d.rid].header=d;
+        seenInGroup.add(d.rid);
+      } else {
+        directItems.push(d);
+      }
+    }
+    const usedInGroup=new Set();
+    for(const[mid,grp]of Object.entries(groups)){
+      if(grp.header) continue;
+      const idx=noChainItems.findIndex(d=>d.rid===mid);
+      if(idx!==-1){
+        grp.header=noChainItems[idx];
+        usedInGroup.add(mid);
+      }
+    }
+    for(const mid of usedInGroup){
+      const idx=noChainItems.findIndex(d=>d.rid===mid);
+      if(idx!==-1)noChainItems.splice(idx,1);
+    }
+    function rowHtml(src,srci,srcName,tgt,tgti,tgtName,qty,extra,method,mClass,sub){
+      return '<div class="arrow-row'+(sub?' sub-row':'')+'"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+srci+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+srcName.charAt(0)+'</span></div>'+srcName+'</div>'
+        +'<span class="arrow">→</span>'
+        +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+tgti+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+tgtName.charAt(0)+'</span></div>'+tgtName+' <b style="color:var(--accent2)">×'+qty+'</b>'+(extra||'')+'</div>'
+        +'<span class="method '+mClass+'">'+method+'</span></div>';
+    }
+    for(const d of directItems){
+      const di=imgUrl('minecraft:'+d.rid);
+      h+=rowHtml(nm,im,nm,d.rid,di,d.name,d.qty,'',d.method,d.mClass);
+    }
+    for(const[mid,grp]of Object.entries(groups)){
+      const mi=imgUrl('minecraft:'+mid);
+      const mn=getName('minecraft:'+mid);
+      const m=getCraftMethod('minecraft:'+mid);
+      if(grp.header){
+        let totalMid=grp.header.qty;
+        for(const d of grp.subItems){
+          const batch=recipeTree&&recipeTree.batch&&recipeTree.batch[d.rid];
+          if(batch){const ing=Object.keys(batch).find(k=>k!=='output');if(ing&&ing===mid)totalMid+=Math.ceil(d.qty/batch.output)*batch[ing];}
+          else{const ent=recipeTree&&recipeTree.decompose[d.rid];if(ent&&ent[mid]!==undefined)totalMid+=Math.ceil(d.qty*ent[mid]);}
+        }
+        h+=rowHtml(nm,im,nm,mid,mi,mn,totalMid,'',grp.header.method,grp.header.mClass);
+      }
+      for(const d of grp.subItems){
+        const di=imgUrl('minecraft:'+d.rid);
+        let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
+        h+=rowHtml(mn,mi,mn,d.rid,di,d.name,d.qty,extra,d.method,d.mClass,true);
+      }
+    }
+    for(const d of noChainItems){
+      const di=imgUrl('minecraft:'+d.rid);
+      let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
+      h+=rowHtml(nm,im,nm,d.rid,di,d.name,d.qty,extra,d.method,d.mClass);
+    }
+    h+='</div>';
   }
   return h;
 }
