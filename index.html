@@ -693,6 +693,7 @@ function getCraftMethod(itemId){
   const isStone=id.includes('deepslate')||id.includes('stone')||id.includes('cobbled')||id.includes('cobblestone')||id.includes('granite')||id.includes('diorite')||id.includes('andesite')||id.includes('tuff')||id.includes('basalt')||id.includes('calcite')||id.includes('blackstone')||id.includes('sandstone')||id.includes('quartz')||id.includes('brick')||id.includes('prismarine')||id.includes('end_stone')||id.includes('nether');
   if(isStone&&(id.endsWith('_stairs')||id.endsWith('_slab')||id.endsWith('_wall')||id.startsWith('chiseled_')||id.endsWith('_bricks')||id.endsWith('_tiles')||id.endsWith('_pillar')))return{method:'切石机',mClass:'craft-method-stonecutter'};
   if(id==='glass'||id.includes('brick')&&!id.includes('bricks')||id==='smooth_stone'||id.includes('smooth_'))return{method:'熔炉',mClass:'craft-method-furnace'};
+  if(id.startsWith('stripped_'))return{method:'去皮',mClass:'craft-method-crafting'};
   return{method:'合成台',mClass:'craft-method-crafting'};
 }
 function showCraftGuide(){
@@ -809,8 +810,15 @@ function showCraftGuide(){
       const mn=getName('minecraft:'+mid);
       const m=getCraftMethod('minecraft:'+mid);
       if(grp.header){
-        // 有标题：显示 基础材料 → 中间产物
-        h+=rowHtml(nm,im,nm,mid,mi,mn,grp.header.qty,'',grp.header.method,grp.header.mClass);
+        // 计算该分组下中间产物的总用量
+        let totalMid=grp.header.qty;
+        for(const d of grp.subItems){
+          const batch=recipeTree&&recipeTree.batch&&recipeTree.batch[d.rid];
+          if(batch){const ing=Object.keys(batch).find(k=>k!=='output');if(ing&&ing===mid)totalMid+=Math.ceil(d.qty/batch.output)*batch[ing];}
+          else{const ent=recipeTree&&recipeTree.decompose[d.rid];if(ent&&ent[mid]!==undefined)totalMid+=Math.ceil(d.qty*ent[mid]);}
+        }
+        // 有标题：显示 基础材料 → 中间产物（合并总量）
+        h+=rowHtml(nm,im,nm,mid,mi,mn,totalMid,'',grp.header.method,grp.header.mClass);
       }
       // 子项缩进
       for(const d of grp.subItems){
