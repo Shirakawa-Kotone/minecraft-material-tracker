@@ -776,6 +776,7 @@ function showCraftGuide(){
     // 收集所有下游物品（直接结果 + 间接消耗）
     const seen=new Set(),downstream=[];
     for(const r of res){
+      if(collected.has(r.ResultItem))continue; // 跳过已收集的产物
       const rid=shortName(r.ResultItem);
       seen.add(rid);
       const m=getCraftMethod(r.ResultItem);
