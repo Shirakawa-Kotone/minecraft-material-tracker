@@ -664,56 +664,84 @@ function closeBreakdown(){document.getElementById('breakdownModal').style.displa
 // ============================================================
 // CRAFT GUIDE
 // ============================================================
+// 判定物品的合成方式
+function getCraftMethod(itemId){
+  const id=shortName(itemId);
+  const isStone=id.includes('deepslate')||id.includes('stone')||id.includes('cobbled')||id.includes('cobblestone')||id.includes('granite')||id.includes('diorite')||id.includes('andesite')||id.includes('tuff')||id.includes('basalt')||id.includes('calcite')||id.includes('blackstone')||id.includes('sandstone')||id.includes('quartz')||id.includes('brick')||id.includes('prismarine')||id.includes('end_stone')||id.includes('nether');
+  if(isStone&&(id.endsWith('_stairs')||id.endsWith('_slab')||id.endsWith('_wall')||id.startsWith('chiseled_')||id.endsWith('_bricks')||id.endsWith('_tiles')||id.endsWith('_pillar')))return{method:'切石机',mClass:'craft-method-stonecutter'};
+  if(id==='glass'||id.includes('brick')&&!id.includes('bricks')||id==='smooth_stone'||id.includes('smooth_'))return{method:'熔炉',mClass:'craft-method-furnace'};
+  return{method:'合成台',mClass:'craft-method-crafting'};
+}
 function showCraftGuide(){
   const items=processData();if(!items.length){showToast('没有数据','error');return}
   const modal=document.getElementById('breakdownModal'),title=document.getElementById('breakdownTitle'),content=document.getElementById('breakdownContent');
   title.innerHTML='🧭 合成指导';
-  let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">将原材料按推荐方式合成为所需产物。优先使用切石机加工石质材料，切石机比合成台更省材料（尤其是楼梯类）。</div>';
+  // 构建反向追溯：基础材料 → 所有消耗它的物品（通过配方树分解）
+  const baseConsumers={};
+  if(recipeTree){
+    for(const item of items){
+      const id=shortName(item.RawItem);
+      if(!recipeTree.decompose[id])continue;
+      const bases=decompose(id,item.TotalEstimate);
+      for(const[baseId,qty]of Object.entries(bases)){
+        if(!baseConsumers[baseId])baseConsumers[baseId]=[];
+        baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty*100)/100});
+      }
+    }
+  }
+  let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">从基础材料出发，展示所有合成去向。实线 → 为直接合成，虚线 ⇢ 为经过中间产物的间接合成。</div>';
   for(const item of items){
     const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
     // 只展示基础材料（配方树中不可进一步分解的原材料）
-    if(recipeTree&&recipeTree.decompose[id]) continue;
+    if(recipeTree&&recipeTree.decompose[id])continue;
     const im=imgUrl(item.RawItem);
-    const res=item.Results||[];
+    const res=(item.Results||[]).filter(r=>r.ResultItem!==item.RawItem);
     h+='<div class="craft-step"><div class="craft-step-title"><div class="mini-icon" style="width:28px;height:28px;border-radius:4px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:14px">'+nm.charAt(0)+'</span></div> '+nm+' <span style="font-weight:400;font-size:12px;color:var(--text-muted)">×'+cnt+'</span></div>';
-    if(res.length===0){h+='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';h+='</div>';continue}
-    // 按加工方式统计
-    let methodTotals={}, totalProcessed=0;
-    const validRes=[];
+    // 收集所有下游物品（直接结果 + 间接消耗）
+    const seen=new Set(),downstream=[];
     for(const r of res){
-      if(r.ResultItem===item.RawItem) continue;
-      validRes.push(r);
-      const baseId=item.RawItem;
-      const bn=shortName(baseId);
-      const rsn=shortName(r.ResultItem);
-      const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
-      let m='合成台';
-      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){m='切石机'}
-      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){m='熔炉'}
-      methodTotals[m]=(methodTotals[m]||0)+r.ResultTotal;
-      totalProcessed+=r.ResultTotal;
+      const rid=shortName(r.ResultItem);
+      seen.add(rid);
+      const m=getCraftMethod(r.ResultItem);
+      downstream.push({rid,name:getName(r.ResultItem),qty:r.ResultTotal,method:m.method,mClass:m.mClass,direct:true});
     }
-    // 方法统计摘要
-    const directUse=Math.max(0,cnt-totalProcessed);
-    let summary=[];
-    if(directUse>0) summary.push('直接使用 '+directUse+' 个');
-    for(const[m,q]of Object.entries(methodTotals)) summary.push(m+' '+q+' 个');
-    if(summary.length) h+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+summary.map(s=>'<span>'+s+'</span>').join('')+'</div>';
-    for(const r of validRes){
-      const rn=getName(r.ResultItem),rc=r.ResultTotal;
-      const ri=imgUrl(r.ResultItem);
-      const baseId=item.RawItem;
-      const bn=shortName(baseId);
-      const rsn=shortName(r.ResultItem);
-      // 判断合成方式
-      let method='合成台',mClass='craft-method-crafting';
-      const isStone=bn.includes('deepslate')||bn.includes('stone')||bn.includes('cobbled')||bn.includes('cobblestone')||bn.includes('granite')||bn.includes('diorite')||bn.includes('andesite')||bn.includes('tuff')||bn.includes('basalt')||bn.includes('calcite')||bn.includes('blackstone')||bn.includes('sandstone')||bn.includes('quartz')||bn.includes('brick')||bn.includes('prismarine')||bn.includes('end_stone')||bn.includes('nether');
-      if(isStone&&(rsn.endsWith('_stairs')||rsn.endsWith('_slab')||rsn.endsWith('_wall')||rsn.startsWith('chiseled_')||rsn.endsWith('_bricks')||rsn.endsWith('_tiles')||rsn.endsWith('_pillar'))){method='切石机';mClass='craft-method-stonecutter'}
-      else if(rsn==='glass'||rsn.includes('brick')&&!rsn.includes('bricks')||rsn==='smooth_stone'||rsn.includes('smooth_')){method='熔炉';mClass='craft-method-furnace'}
+    const consumers=baseConsumers[id]||[];
+    for(const c of consumers){
+      const cid=shortName(c.item.RawItem);
+      if(seen.has(cid))continue;
+      seen.add(cid);
+      const m=getCraftMethod(c.item.RawItem);
+      downstream.push({rid:cid,name:c.item.ChineseName,qty:c.item.TotalEstimate,baseConsumed:c.baseConsumed,method:m.method,mClass:m.mClass,direct:false});
+    }
+    if(downstream.length===0){h+='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';h+='</div>';continue}
+    // 按方法统计（统计产物种类数，避免不同层级数量叠加）
+    const byMethod={};
+    for(const d of downstream){
+      if(!byMethod[d.method])byMethod[d.method]={qty:0,count:0};
+      byMethod[d.method].qty+=d.qty;
+      byMethod[d.method].count++;
+    }
+    let sumHtml=[];
+    // 计算消耗：间接消耗（来自配方树）+ 直接结果消耗
+    let totalBaseUsed=downstream.reduce((s,d)=>s+(d.baseConsumed||0),0);
+    // 将直接结果也分解为基础材料，叠加消耗
+    for(const d of downstream){
+      if(!d.direct)continue;
+      const w=decompose(d.rid,d.qty);
+      if(w[id])totalBaseUsed+=w[id];
+    }
+    const du=Math.max(0,Math.round(cnt-totalBaseUsed));
+    if(du>0)sumHtml.push('直接使用 '+du+' 个');
+    for(const[m,info]of Object.entries(byMethod))sumHtml.push(m+' '+info.count+' 种');
+    if(sumHtml.length)h+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.04);margin-bottom:6px">'+sumHtml.map(s=>'<span>'+s+'</span>').join('')+'</div>';
+    for(const d of downstream){
+      const di=imgUrl('minecraft:'+d.rid);
+      let extra='',arr='→';
+      if(!d.direct){arr='⇢';extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';}
       h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
-        +'<span class="arrow">→</span>'
-        +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+ri+'" alt="" loading="lazy" data-iid="'+r.ResultItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+rn.charAt(0)+'</span></div>'+rn+' <b style="color:var(--accent2)">×'+rc+'</b></div>'
-        +'<span class="method '+mClass+'">'+method+'</span></div>';
+        +'<span class="arrow">'+arr+'</span>'
+        +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+di+'" alt="" loading="lazy" data-iid="'+'minecraft:'+d.rid+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+d.name.charAt(0)+'</span></div>'+d.name+' <b style="color:var(--accent2)">×'+d.qty+'</b>'+extra+'</div>'
+        +'<span class="method '+d.mClass+'">'+d.method+'</span></div>';
     }
     h+='</div>';
   }
