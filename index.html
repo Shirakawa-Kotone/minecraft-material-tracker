@@ -554,7 +554,7 @@ function processData(){
 }
 function totalBreakdown(items){
   if(!recipeTree)return null;const t={};
-  for(const i of items){const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
+  for(const i of items){if(i.collected)continue;const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
   return t;
 }
 
@@ -704,6 +704,7 @@ function showCraftGuide(){
   const baseConsumers={};
   if(recipeTree){
     for(const item of items){
+      if(item.collected)continue;
       const id=shortName(item.RawItem);
       if(!recipeTree.decompose[id])continue;
       const bases=decompose(id,item.TotalEstimate,true);
@@ -715,6 +716,7 @@ function showCraftGuide(){
   }
   let h='<div class="craft-guide"><div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">从基础材料出发，展示完整合成链。中间产物下缩进展示其下游物品。</div>';
   for(const item of items){
+    if(item.collected)continue;
     const nm=item.ChineseName,id=shortName(item.RawItem),cnt=item.TotalEstimate;
     // 只展示基础材料（配方树中不可进一步分解的原材料）
     if(recipeTree&&recipeTree.decompose[id])continue;
