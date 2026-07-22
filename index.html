@@ -652,18 +652,93 @@ function renderRaw(c,bd){
   }
   todo.sort((a,b)=>b[1]-a[1]);done.sort((a,b)=>b[1]-a[1]);
   let h='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent)"><div style="font-size:14px;font-weight:600;margin-bottom:8px">🧱 基础材料汇总</div><div style="font-size:13px;color:var(--text-muted)">按配方分解到最基础的原材料，去皮木头已折算为普通原木。优先切石机方案。</div></div>';
-  h+='<div class="material-grid">';
-  for(const[nm,ct]of todo){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
-    h+='<div class="card"><div class="card-header"><div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')"></div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+'</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
-  h+='</div>';
+  // 嵌入合成链的基础材料列表
+  h+='<div class="craft-guide">';
+  // 重建合成链数据（与 buildCraftGuideHtml 共享逻辑）
+  const items=processData();
+  const baseConsumers={};
+  if(recipeTree){
+    for(const item of items){
+      if(item.collected)continue;
+      const sid=shortName(item.RawItem);
+      if(!recipeTree.decompose[sid])continue;
+      const bases=decompose(sid,item.TotalEstimate,true);
+      for(const[baseId,qty]of Object.entries(bases)){
+        if(!baseConsumers[baseId])baseConsumers[baseId]=[];
+        baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty)});
+      }
+    }
+  }
+  function renderCardWithChain(nm,ct,isDone){
+    const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
+    const chk=isDone?'<div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')">✓</div>':'<div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')"></div>';
+    // 查找该基础材料的合成链（从 processData 中找匹配 item）
+    const srcItem=items.find(i=>shortName(i.RawItem)===nm&&!i.collected);
+    let chainHtml='';
+    if(srcItem){
+      const rid=nm,id=nm,cnt=srcItem.TotalEstimate;
+      const res=(srcItem.Results||[]).filter(r=>r.ResultItem!==srcItem.RawItem);
+      const seen2=new Set(),downstream=[];
+      for(const r of res){
+        if(collected.has(r.ResultItem))continue;
+        const srid=shortName(r.ResultItem);
+        seen2.add(srid);
+        const m=getCraftMethod(r.ResultItem);
+        downstream.push({rid:srid,name:getName(r.ResultItem),qty:r.ResultTotal,method:m.method,mClass:m.mClass,direct:true});
+      }
+      const consumers=baseConsumers[id]||[];
+      for(const c of consumers){
+        const cid=shortName(c.item.RawItem);
+        if(seen2.has(cid))continue;
+        seen2.add(cid);
+        const m=getCraftMethod(c.item.RawItem);
+        downstream.push({rid:cid,name:c.item.ChineseName,qty:c.item.TotalEstimate,baseConsumed:c.baseConsumed,method:m.method,mClass:m.mClass,direct:false});
+      }
+      if(downstream.length>0){
+        const byMethod={}; let totalBaseUsed=0;
+        for(const d of downstream){
+          if(!byMethod[d.method])byMethod[d.method]=0;
+          byMethod[d.method]++;
+          if(!d.direct) totalBaseUsed+=d.baseConsumed||0;
+          else{const w=decompose(d.rid,d.qty,true);if(w[id])totalBaseUsed+=w[id];}
+        }
+        let sumHtml=[];
+        const du=Math.max(0,Math.round(cnt-totalBaseUsed));
+        if(du>0)sumHtml.push('直接使用 '+du+' 个');
+        for(const[m,c]of Object.entries(byMethod))sumHtml.push(m+' '+c+' 种');
+        if(sumHtml.length)chainHtml+='<div style="font-size:12px;color:var(--text-muted);padding:6px 0 8px;display:flex;gap:10px;flex-wrap:wrap">'+sumHtml.map(s=>'<span>'+s+'</span>').join('')+'</div>';
+        // 简化的链渲染（直接结果 + 间接结果，无中间产物分组）
+        const doneSet=new Set();
+        for(const d of downstream){
+          if(!d.direct||doneSet.has(d.rid))continue;
+          doneSet.add(d.rid);
+          const di=imgUrl('minecraft:'+d.rid);
+          chainHtml+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+cn.charAt(0)+'</span></div>'+cn+'</div><span class="arrow">→</span><div class="ing"><div class="mini-icon"><img class="iimg" src="'+di+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+d.name.charAt(0)+'</span></div>'+d.name+' <b style="color:var(--accent2)">×'+d.qty+'</b></div><span class="method '+d.mClass+'">'+d.method+'</span></div>';
+        }
+        for(const d of downstream){
+          if(d.direct||doneSet.has(d.rid))continue;
+          doneSet.add(d.rid);
+          const di=imgUrl('minecraft:'+d.rid);
+          let extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+cn+')</span>';
+          chainHtml+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+cn.charAt(0)+'</span></div>'+cn+'</div><span class="arrow">→</span><div class="ing"><div class="mini-icon"><img class="iimg" src="'+di+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+d.name.charAt(0)+'</span></div>'+d.name+' <b style="color:var(--accent2)">×'+d.qty+'</b>'+extra+'</div><span class="method '+d.mClass+'">'+d.method+'</span></div>';
+        }
+      }
+    }
+    if(!chainHtml)chainHtml='<div style="color:var(--text-muted);font-size:13px;padding:8px 0">直接使用，无需合成</div>';
+    return '<div class="card'+(isDone?' collected':'')+'">'
+      +'<div class="card-header">'+chk
+      +'<div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div>'
+      +'<div class="card-info"><div class="name">'+cn+(isDone?' ✅':'')+'</div><div class="sub"><span class="item-id">'+nm+'</span></div></div>'
+      +'<div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div>'
+      +'</div>'
+      +'<div class="card-expand" style="display:block;padding:0 16px 14px"><div style="border-top:1px solid var(--border);padding-top:8px">'+chainHtml+'</div></div></div>';
+  }
+  for(const[nm,ct]of todo)h+=renderCardWithChain(nm,ct,false);
   if(done.length>0){
-    h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集基础材料 ('+done.length+' 种)</div><div class="material-grid">';
-    for(const[nm,ct]of done){const mc='minecraft:'+nm;const cn=FALLBACK_NAMES[mc]||getName(mc);const im=imgUrl(mc);const cc=Math.ceil(ct);
-      h+='<div class="card collected"><div class="card-header"><div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+mc+'\')">✓</div><div class="item-icon"><img class="iimg" src="'+im+'" alt="'+cn+'" loading="lazy" data-iid="'+mc+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+cn.charAt(0)+'</span></div><div class="card-info"><div class="name">'+cn+' ✅</div><div class="sub"><span class="item-id">'+nm+'</span></div></div><div style="text-align:right"><div class="card-qty">'+cc+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(cc)+'</div></div></div></div>'}
-    h+='</div></div>'}
-  // 合并合成指导
-  const guideHtml=buildCraftGuideHtml();
-  if(guideHtml)h+='<div style="margin-top:32px;padding-top:24px;border-top:2px solid var(--border)"><div class="group-title" style="font-size:18px;padding-bottom:16px">🔗 合成链详情</div><div class="craft-guide">'+guideHtml+'</div></div>';
+    h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集基础材料 ('+done.length+' 种)</div>';
+    for(const[nm,ct]of done)h+=renderCardWithChain(nm,ct,true);
+    h+='</div>'}
+  h+='</div>';
   c.innerHTML=h;imgFB();
 }
 function renderCard(item){
