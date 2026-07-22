@@ -471,11 +471,12 @@ async function loadRT(){
   try{const r=await fetch('recipe-tree.json');recipeTree=await r.json();console.log('📦 配方树',Object.keys(recipeTree.decompose).length,'项')}
   catch(e){console.warn('⚠️ 配方树:',e.message)}
 }
-function decompose(name,count){
+function decompose(name,count,useCeil){
   if(!recipeTree||!recipeTree.decompose[name])return{[name]:count};
   const r={};
   for(const[base,ratio]of Object.entries(recipeTree.decompose[name])){
-    const sub=decompose(base,Math.ceil(ratio*count));
+    const next=useCeil?Math.ceil(ratio*count):ratio*count;
+    const sub=decompose(base,next,useCeil);
     for(const[k,v]of Object.entries(sub))r[k]=(r[k]||0)+v;
   }
   return r;
@@ -682,7 +683,7 @@ function showCraftGuide(){
     for(const item of items){
       const id=shortName(item.RawItem);
       if(!recipeTree.decompose[id])continue;
-      const bases=decompose(id,item.TotalEstimate);
+      const bases=decompose(id,item.TotalEstimate,true);
       for(const[baseId,qty]of Object.entries(bases)){
         if(!baseConsumers[baseId])baseConsumers[baseId]=[];
         baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty)});
@@ -727,7 +728,7 @@ function showCraftGuide(){
     // 将直接结果也分解为基础材料，叠加消耗
     for(const d of downstream){
       if(!d.direct)continue;
-      const w=decompose(d.rid,d.qty);
+      const w=decompose(d.rid,d.qty,true);
       if(w[id])totalBaseUsed+=w[id];
     }
     const du=Math.max(0,Math.round(cnt-totalBaseUsed));
