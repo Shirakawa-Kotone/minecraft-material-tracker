@@ -623,31 +623,16 @@ function renderRaw(c,bd){
   c.innerHTML=h;imgFB();
 }
 function renderCard(item){
-  const im=imgUrl(item.RawItem),nm=item.ChineseName,id=shortName(item.RawItem),res=(item.Results||[]).filter(r=>r.ResultItem!==item.RawItem),done=item.collected;
+  const im=imgUrl(item.RawItem),nm=item.ChineseName,id=shortName(item.RawItem),done=item.collected;
   let bd='';const iname=shortName(item.RawItem);
   if(recipeTree&&recipeTree.decompose[iname]){const dc=decompose(iname,1);const ps=Object.entries(dc).filter(([k])=>k!==iname).slice(0,3);if(ps.length>0)bd='<div class="card-breakdown" onclick="event.stopPropagation();showBreakdown(\''+item.RawItem+'\',\''+nm+'\','+item.TotalEstimate+')">🔍 查看分解</div>'}
-  // 产物明细优先展示
-  let prodHtml='';
-  if(res.length>0){
-    prodHtml='<div style="padding:8px 14px 12px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⬇ 产出</div>';
-    for(const r of res){const ri=imgUrl(r.ResultItem),rn=getName(r.ResultItem);const pct=((r.ResultTotal/item.TotalEstimate)*100).toFixed(1);
-      prodHtml+='<div class="arrow-row" style="padding:5px 0;border:none"><div class="ing"><div class="mini-icon" style="width:22px;height:22px"><img class="iimg" src="'+im+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div><span style="font-size:12px;color:var(--text-muted)">'+nm+'</span></div>'
-        +'<span class="arrow" style="font-size:14px">→</span>'
-        +'<div class="ing"><div class="mini-icon" style="width:22px;height:22px"><img class="iimg" src="'+ri+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+rn.charAt(0)+'</span></div>'+rn+' <b style="color:var(--accent2);font-size:14px">×'+r.ResultTotal+'</b></div>'
-        +'<span style="font-size:10px;color:var(--text-muted)">'+pct+'%</span></div>';
-    }
-    prodHtml+='</div>';
-  }else if(item.TotalEstimate>0){
-    prodHtml='<div style="padding:8px 14px 12px;border-top:1px solid var(--border);color:var(--text-muted);font-size:13px;display:flex;align-items:center;gap:6px"><span>📦</span> 直接使用</div>';
-  }
   const chk=done?'<div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+item.RawItem+'\')">✓</div>':'<div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+item.RawItem+'\')"></div>';
   return'<div class="card'+(done?' collected':'')+'">'
     +'<div class="card-header">'+chk
     +'<div class="item-icon"><img class="iimg" src="'+im+'" alt="'+nm+'" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+nm.charAt(0)+'</span></div>'
     +'<div class="card-info"><div class="name">'+nm+(done?' ✅':'')+'</div><div class="sub"><span class="item-id">'+id+'</span>'+(bd?'<br>'+bd:'')+'</div></div>'
-    +'<div style="text-align:right"><div style="font-size:13px;color:var(--text-muted)">需</div><div class="card-qty">'+item.TotalEstimate+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(item.TotalEstimate)+'</div></div>'
-    +'</div>'
-    +prodHtml+'</div>';
+    +'<div style="text-align:right"><div class="card-qty">'+item.TotalEstimate+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(item.TotalEstimate)+'</div></div>'
+    +'</div></div>';
 }
 function renderTable(items){
   let h='<table class="table-view"><tr><th style="width:30px"></th><th>材料</th><th style="text-align:right">需要数量</th><th>产物去向</th></tr>';
