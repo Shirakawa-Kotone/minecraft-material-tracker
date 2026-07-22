@@ -554,11 +554,13 @@ function processData(){
 function totalBreakdown(items){
   if(!recipeTree)return null;const t={};
   for(const i of items){
-    if(i.collected)continue;
+    const sn=shortName(i.RawItem);
+    // 有配方树条目的已收集材料：跳过，避免重复分解（如已收集的楼梯不再分解为原木）
+    if(i.collected && recipeTree.decompose[sn])continue;
     // 如果该材料的所有产物都被收集了，跳过（如沙子→玻璃已收集）
     const res=(i.Results||[]).filter(r=>r.ResultItem!==i.RawItem);
     if(res.length>0&&res.every(r=>collected.has(r.ResultItem)))continue;
-    const d=decompose(shortName(i.RawItem),i.TotalEstimate);
+    const d=decompose(sn,i.TotalEstimate);
     for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v
   }
   return t;
