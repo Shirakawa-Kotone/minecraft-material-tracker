@@ -557,6 +557,24 @@ function totalBreakdown(items){
   for(const i of items){if(i.collected)continue;const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
   return t;
 }
+function processByProducts(){
+  if(!rawData||!rawData.length)return[];
+  const pm=new Map();
+  for(const e of rawData){
+    if(!e.Results)continue;
+    for(const r of e.Results){
+      const rid=r.ResultItem;
+      if(rid===e.RawItem)continue; // 跳过"直接使用"的自引用
+      if(!pm.has(rid))pm.set(rid,{ResultItem:rid,TotalQty:0,Sources:[],ChineseName:getName(rid),Category:getCategory(rid),collected:collected.has(rid)});
+      const rec=pm.get(rid);
+      rec.TotalQty+=r.ResultTotal;
+      let src=rec.Sources.find(s=>s.RawItem===e.RawItem);
+      if(src)src.Qty+=r.ResultTotal;
+      else rec.Sources.push({RawItem:e.RawItem,Qty:r.ResultTotal,ChineseName:getName(e.RawItem)});
+    }
+  }
+  return Array.from(pm.values()).sort((a,b)=>b.TotalQty-a.TotalQty);
+}
 
 // ============================================================
 // COLLECTION TOGGLE
@@ -587,6 +605,23 @@ function renderData(){
   const st=document.getElementById('searchBox').value.toLowerCase().trim();
   let fi=items;if(activeCategory)fi=fi.filter(i=>i.Category===activeCategory);if(st)fi=fi.filter(i=>i.ChineseName.toLowerCase().includes(st)||i.RawItem.toLowerCase().includes(st));
   if(!fi.length){c.innerHTML='<div class="empty-state"><div class="icon">🔍</div><h3>没有匹配的结果</h3></div>';return}
+  if(viewMode==='card'){
+    // 卡片模式：按产物(resultItem)展示
+    const prods=processByProducts();
+    const pst=document.getElementById('searchBox').value.toLowerCase().trim();
+    let pf=prods;if(pst)pf=pf.filter(i=>i.ChineseName.toLowerCase().includes(pst)||i.ResultItem.toLowerCase().includes(pst));
+    if(!pf.length){c.innerHTML='<div class="empty-state"><div class="icon">🔍</div><h3>没有匹配的结果</h3></div>';return}
+    const ptodo=pf.filter(i=>!i.collected),pcollected=pf.filter(i=>i.collected);
+    const pgr={};for(const i of ptodo){const cat=i.Category;if(!pgr[cat])pgr[cat]=[];pgr[cat].push(i)}
+    let ph='<div style="margin-bottom:16px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--accent);font-size:13px;color:var(--text-muted)">🏗️ 按产物展示 — 每个卡片是一种合成产物，下方列出来源材料</div>';
+    const pco=Object.keys(pgr).sort((a,b)=>{const sa=pgr[a].reduce((s,i)=>s+i.TotalQty,0),sb=pgr[b].reduce((s,i)=>s+i.TotalQty,0);return sb-sa});
+    for(const cat of pco){const ci=pgr[cat];const tc=ci.reduce((s,i)=>s+i.TotalQty,0);
+      ph+='<div class="group-section"><div class="group-title">📦 '+cat+' <span class="count">('+ci.length+' 种，共 '+tc+' 个 / '+fmtShort(tc)+')</span></div><div class="material-grid">';
+      for(const i of ci)ph+=renderProductCard(i);ph+='</div></div>'}
+    if(pcollected.length>0){ph+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集 ('+pcollected.length+' 种)</div><div class="material-grid">';
+      for(const i of pcollected)ph+=renderProductCard(i);ph+='</div></div>'}
+    c.innerHTML=ph;imgFB();return
+  }
   if(viewMode==='raw'&&bd){renderRaw(c,bd);return}
   // 分已收集/未收集
   const todo=fi.filter(i=>!i.collected),collectedItems=fi.filter(i=>i.collected);
@@ -595,10 +630,10 @@ function renderData(){
   const co=Object.keys(gr).sort((a,b)=>{const sa=gr[a].reduce((s,i)=>s+i.TotalEstimate,0),sb=gr[b].reduce((s,i)=>s+i.TotalEstimate,0);return sb-sa});
   for(const cat of co){const ci=gr[cat];const tc=ci.reduce((s,i)=>s+i.TotalEstimate,0);
     h+='<div class="group-section"><div class="group-title">📦 '+cat+' <span class="count">('+ci.length+' 种，共 '+tc+' 个 / '+fmtShort(tc)+')</span></div>';
-    if(viewMode==='card'){h+='<div class="material-grid">';for(const i of ci)h+=renderCard(i);h+='</div>'}else h+=renderTable(ci);h+='</div>'}
+    h+=renderTable(ci);h+='</div>'}
   // 已收集区域
   if(collectedItems.length>0){h+='<div class="group-section" style="margin-top:32px;padding-top:24px;border-top:2px solid var(--done-border)"><div class="group-title">✅ 已收集 ('+collectedItems.length+' 种)</div>';
-    if(viewMode==='card'){h+='<div class="material-grid">';for(const i of collectedItems)h+=renderCard(i);h+='</div>'}else h+=renderTable(collectedItems);h+='</div>'}
+    h+=renderTable(collectedItems);h+='</div>'}
   c.innerHTML=h;
   document.querySelectorAll('.card-header').forEach(el=>{el.addEventListener('click',function(){const bd=this.nextElementSibling;const ar=this.querySelector('.card-arrow');if(bd&&bd.classList.contains('card-expand')){const op=bd.style.display!=='none';bd.style.display=op?'none':'block';if(ar)ar.classList.toggle('open',!op)}})});
   imgFB();
@@ -632,6 +667,24 @@ function renderCard(item){
     +'<div class="item-icon"><img class="iimg" src="'+im+'" alt="'+nm+'" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+nm.charAt(0)+'</span></div>'
     +'<div class="card-info"><div class="name">'+nm+(done?' ✅':'')+'</div><div class="sub"><span class="item-id">'+id+'</span></div><div style="font-size:12px;color:var(--accent2);margin-top:3px">→ '+rstr+'</div></div>'
     +'<div style="text-align:right"><div class="card-qty">'+item.TotalEstimate+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(item.TotalEstimate)+'</div></div>'
+    +'</div></div>';
+}
+function renderProductCard(item){
+  const im=imgUrl(item.ResultItem),nm=item.ChineseName,id=shortName(item.ResultItem),done=item.collected;
+  const sources=item.Sources||[];
+  const srcHtml=sources.map(s=>{
+    const sim=imgUrl(s.RawItem);
+    return'<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px"><div class="mini-icon" style="width:20px;height:20px;border-radius:3px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;image-rendering:pixelated"><img class="iimg" src="'+sim+'" alt="" loading="lazy" data-iid="'+s.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+s.ChineseName.charAt(0)+'</span></div><span style="color:var(--text-muted)">'+s.ChineseName+'</span><span style="margin-left:auto;font-weight:600;color:var(--accent2)">×'+s.Qty+'</span></div>';
+  }).join('');
+  const chk=done?'<div class="checkbox checked" onclick="event.stopPropagation();toggleCollected(\''+item.ResultItem+'\')">✓</div>':'<div class="checkbox" onclick="event.stopPropagation();toggleCollected(\''+item.ResultItem+'\')"></div>';
+  return'<div class="card'+(done?' collected':'')+'">'
+    +'<div class="card-header" style="cursor:pointer">'+chk
+    +'<div class="item-icon"><img class="iimg" src="'+im+'" alt="'+nm+'" loading="lazy" data-iid="'+item.ResultItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:24px">'+nm.charAt(0)+'</span></div>'
+    +'<div class="card-info"><div class="name">'+nm+(done?' ✅':'')+'</div><div class="sub"><span class="item-id">'+id+'</span></div><div style="font-size:11px;color:var(--text-muted);margin-top:3px">来自 '+sources.length+' 种材料</div></div>'
+    +'<div style="text-align:right"><div class="card-qty">'+item.TotalQty+' <span class="unit">个</span></div><div style="font-size:11px;color:var(--accent2)">'+fmtShort(item.TotalQty)+'</div></div>'
+    +'</div>'
+    +'<div class="card-expand" style="display:block;padding:0 16px 14px">'
+    +'<div style="border-top:1px solid var(--border);padding-top:10px">'+srcHtml+'</div>'
     +'</div></div>';
 }
 function renderTable(items){
