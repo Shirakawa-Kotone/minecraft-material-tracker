@@ -475,7 +475,7 @@ function decompose(name,count){
   if(!recipeTree||!recipeTree.decompose[name])return{[name]:count};
   const r={};
   for(const[base,ratio]of Object.entries(recipeTree.decompose[name])){
-    const sub=decompose(base,ratio*count);
+    const sub=decompose(base,Math.ceil(ratio*count));
     for(const[k,v]of Object.entries(sub))r[k]=(r[k]||0)+v;
   }
   return r;
@@ -544,7 +544,7 @@ function processData(){
 function totalBreakdown(items){
   if(!recipeTree)return null;const t={};
   for(const i of items){const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
-  for(const k in t)t[k]=Math.ceil(t[k]*100)/100;return t;
+  return t;
 }
 
 // ============================================================
@@ -685,7 +685,7 @@ function showCraftGuide(){
       const bases=decompose(id,item.TotalEstimate);
       for(const[baseId,qty]of Object.entries(bases)){
         if(!baseConsumers[baseId])baseConsumers[baseId]=[];
-        baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty*100)/100});
+        baseConsumers[baseId].push({item,baseConsumed:Math.ceil(qty)});
       }
     }
   }
