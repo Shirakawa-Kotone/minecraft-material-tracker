@@ -554,7 +554,14 @@ function processData(){
 }
 function totalBreakdown(items){
   if(!recipeTree)return null;const t={};
-  for(const i of items){if(i.collected)continue;const d=decompose(shortName(i.RawItem),i.TotalEstimate);for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v}
+  for(const i of items){
+    if(i.collected)continue;
+    // 如果该材料的所有产物都被收集了，跳过（如沙子→玻璃已收集）
+    const res=(i.Results||[]).filter(r=>r.ResultItem!==i.RawItem);
+    if(res.length>0&&res.every(r=>collected.has(r.ResultItem)))continue;
+    const d=decompose(shortName(i.RawItem),i.TotalEstimate);
+    for(const[k,v]of Object.entries(d))t[k]=(t[k]||0)+v
+  }
   return t;
 }
 function processByProducts(){
