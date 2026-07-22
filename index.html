@@ -675,6 +675,18 @@ function closeBreakdown(){document.getElementById('breakdownModal').style.displa
 // CRAFT GUIDE
 // ============================================================
 // 判定物品的合成方式
+// 追溯物品到基础材料的中间链条
+function getChain(itemId,baseId){
+  if(!recipeTree||!recipeTree.decompose[itemId])return null;
+  for(const ing of Object.keys(recipeTree.decompose[itemId])){
+    if(ing===baseId)return[];
+    const sub=recipeTree.decompose[ing];
+    if(sub&&sub[baseId]!==undefined)return[ing];
+    const deeper=getChain(ing,baseId);
+    if(deeper!==null)return[ing,...deeper];
+  }
+  return null;
+}
 function getCraftMethod(itemId){
   const id=shortName(itemId);
   const isStone=id.includes('deepslate')||id.includes('stone')||id.includes('cobbled')||id.includes('cobblestone')||id.includes('granite')||id.includes('diorite')||id.includes('andesite')||id.includes('tuff')||id.includes('basalt')||id.includes('calcite')||id.includes('blackstone')||id.includes('sandstone')||id.includes('quartz')||id.includes('brick')||id.includes('prismarine')||id.includes('end_stone')||id.includes('nether');
@@ -747,7 +759,29 @@ function showCraftGuide(){
     for(const d of downstream){
       const di=imgUrl('minecraft:'+d.rid);
       let extra='',arr='→';
-      if(!d.direct){arr='⇢';extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';}
+      if(!d.direct){
+        arr='→';extra=' <span style="font-size:11px;color:var(--text-muted)">(需 '+d.baseConsumed+' '+nm+')</span>';
+        // 查找中间产物链条
+        const chain=getChain(d.rid,id);
+        if(chain&&chain.length>0){
+          let chainHtml='';
+          for(const cid of chain){
+            const ci=imgUrl('minecraft:'+cid);
+            const cn=getName('minecraft:'+cid);
+            chainHtml+='<span class="arrow" style="font-size:14px">→</span>'
+              +'<div class="ing" style="font-size:12px;color:var(--text-muted)"><div class="mini-icon" style="width:20px;height:20px"><img class="iimg" src="'+ci+'" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain"></div>'+cn+'</div>';
+          }
+          // 将链条插入到箭头之后、目标物品之前
+          // 重构 row：基础材料 → 中间产物 ... → 最终产物
+          h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
+            +'<span class="arrow">→</span>'
+            +chainHtml
+            +'<span class="arrow">→</span>'
+            +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+di+'" alt="" loading="lazy" data-iid="'+'minecraft:'+d.rid+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+d.name.charAt(0)+'</span></div>'+d.name+' <b style="color:var(--accent2)">×'+d.qty+'</b>'+extra+'</div>'
+            +'<span class="method '+d.mClass+'">'+d.method+'</span></div>';
+          continue;
+        }
+      }
       h+='<div class="arrow-row"><div class="ing"><div class="mini-icon"><img class="iimg" src="'+im+'" alt="" loading="lazy" data-iid="'+item.RawItem+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+nm.charAt(0)+'</span></div>'+nm+'</div>'
         +'<span class="arrow">'+arr+'</span>'
         +'<div class="ing"><div class="mini-icon"><img class="iimg" src="'+di+'" alt="" loading="lazy" data-iid="'+'minecraft:'+d.rid+'" style="width:100%;height:100%;object-fit:contain"><span class="fb" style="display:none;font-size:10px">'+d.name.charAt(0)+'</span></div>'+d.name+' <b style="color:var(--accent2)">×'+d.qty+'</b>'+extra+'</div>'
